@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { API_BASE_URL } from "../../../../../config/api";
 
-const DEFAULTS: Record<string, string> = {
-  gateway: "http://127.0.0.1:7000",
-  auth: "http://127.0.0.1:7001",
-  user: "http://127.0.0.1:7002",
-  quiz: "http://127.0.0.1:7003",
-  learning: "http://127.0.0.1:7004",
-  gamification: "http://127.0.0.1:7005",
-  social: "http://127.0.0.1:7006",
-  analytics: "http://127.0.0.1:7007",
-  content: "http://127.0.0.1:7008",
-  notifications: "http://127.0.0.1:7009",
-  sync: "http://127.0.0.1:7010",
-  recommendations: "http://127.0.0.1:7011",
-  ai: "http://127.0.0.1:7100",
-  backend: "http://127.0.0.1:7200",
-};
+const KNOWN_SERVICES = new Set([
+  "gateway",
+  "auth",
+  "user",
+  "quiz",
+  "learning",
+  "gamification",
+  "social",
+  "analytics",
+  "content",
+  "notifications",
+  "sync",
+  "recommendations",
+  "ai",
+  "backend",
+]);
 
-function upstreamBase(service: string): string {
+function upstreamBase(service: string): string | null {
+  if (!KNOWN_SERVICES.has(service)) return null;
   const envKey = `MANABU_${service.toUpperCase()}_URL`;
-  return (process.env as any)[envKey] ?? DEFAULTS[service];
+  return (process.env as any)[envKey] ?? API_BASE_URL;
 }
 
 async function handleProxy(request: NextRequest, ctx: { params: { service: string; path: string[] } }) {

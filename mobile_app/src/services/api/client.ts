@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { API_BASE_URL } from "../../config/api";
 import { env } from "../../config/env";
 import { getToken } from "../../security/tokenStore";
 import { reportMobileError } from "../monitoring";
@@ -49,8 +50,7 @@ apiClient.interceptors.response.use(
     }
 
     if (isNetworkFailure) {
-      error.message =
-        "Cannot reach the MANABU server. If you are using a real phone, keep it on the same Wi-Fi as this PC. If you are using an Android emulator, MANABU will try 10.0.2.2 automatically.";
+      error.message = `Cannot reach the MANABU server at ${API_BASE_URL} right now.`;
     }
 
     await reportMobileError(error, {

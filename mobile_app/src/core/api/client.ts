@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_BASE_URL } from "../../config/api";
 
 export const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:7000",
+  baseURL: API_BASE_URL,
   timeout: 10000,
 });
 

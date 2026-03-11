@@ -1,4 +1,5 @@
 import type { NextResponse } from "next/server";
+import { API_BASE_URL } from "../config/api";
 
 import {
   AUTH_COOKIES,
@@ -36,7 +37,7 @@ function cookieOptions(maxAge: number, httpOnly: boolean, secure: boolean) {
 }
 
 export function getBackendApiBaseUrl(): string {
-  return process.env.MANABU_BACKEND_URL ?? process.env.MANABU_BACKEND_API_URL ?? "http://127.0.0.1:7200";
+  return API_BASE_URL;
 }
 
 export function resolveUserRole(email: string): UserRole {

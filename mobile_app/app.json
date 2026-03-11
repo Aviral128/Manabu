@@ -9,7 +9,7 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiUrl": "http://192.168.1.3:7200",
+      "apiUrl": "https://manabu-production.up.railway.app",
       "eas": {
         "projectId": "12da4fbb-df53-4db4-8163-5ce4ea91d0b5"
       }
