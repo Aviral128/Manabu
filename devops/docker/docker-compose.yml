@@ -1,0 +1,137 @@
+services:
+  api-gateway:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/api-gateway
+    ports:
+      - "7000:7000"
+    environment:
+      - PORT=7000
+      - LOG_LEVEL=info
+
+  auth-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/auth-service
+    ports:
+      - "7001:7001"
+
+  user-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/user-service
+    ports:
+      - "7002:7002"
+
+  quiz-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/quiz-service
+    ports:
+      - "7003:7003"
+
+  learning-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/learning-service
+    ports:
+      - "7004:7004"
+
+  gamification-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/gamification-service
+    ports:
+      - "7005:7005"
+
+  social-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/social-service
+    ports:
+      - "7006:7006"
+
+  analytics-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/analytics-service
+    ports:
+      - "7007:7007"
+
+  content-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/content-service
+    ports:
+      - "7008:7008"
+
+  notification-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/notification-service
+    ports:
+      - "7009:7009"
+
+  sync-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/sync-service
+    ports:
+      - "7010:7010"
+
+  recommendation-service:
+    build:
+      context: ../../backend_services
+      dockerfile: ../devops/docker/backend.Dockerfile
+      args:
+        SERVICE_DIR: services/recommendation-service
+    ports:
+      - "7011:7011"
+
+  ai-engine:
+    build:
+      context: ../../ai_engine
+      dockerfile: ../devops/docker/ai.Dockerfile
+    ports:
+      - "7100:7100"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: manabu
+      POSTGRES_PASSWORD: manabu
+      POSTGRES_DB: manabu
+    ports:
+      - "5432:5432"
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"

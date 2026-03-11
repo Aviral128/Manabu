@@ -1,0 +1,25 @@
+{
+  "name": "manabu-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node scripts/install-subprojects.mjs",
+    "build": "npm --prefix backend_api run build && npm --prefix backend_services run build && npm --prefix admin_panel run build && npm --prefix user_web_app run build && npm --prefix mobile_app run build",
+    "lint": "npm --prefix backend_api run lint && npm --prefix backend_services run lint && npm --prefix admin_panel run lint && npm --prefix user_web_app run lint && npm --prefix mobile_app run lint",
+    "dev-all": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File scripts/start_local_stack.ps1 -SkipBuild -IncludeUI",
+    "mobile:start": "npm --prefix mobile_app run start",
+    "desktop:start": "npm --prefix desktop_app run start",
+    "desktop:dist": "npm --prefix desktop_app run dist",
+    "prod-build": "npm run build",
+    "prod-start": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File scripts/ensure_postgres_container.ps1 && npx pm2 start ecosystem.config.cjs --env production",
+    "prod-stop": "npx pm2 delete ecosystem.config.cjs",
+    "smoke:api": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File scripts/smoke_api.ps1",
+    "smoke:ui": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File scripts/smoke_ui.ps1",
+    "smoke:mobile": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File scripts/check_mobile_metro.ps1",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "pm2": "^5.4.3"
+  }
+}

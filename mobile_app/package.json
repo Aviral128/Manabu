@@ -1,0 +1,38 @@
+{
+  "name": "manabu-mobile-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "start:clear": "expo start -c",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "doctor": "npx expo-doctor"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/native-stack": "^6.11.0",
+    "axios": "^1.7.7",
+    "expo": "^55.0.5",
+    "expo-constants": "~18.0.10",
+    "expo-linear-gradient": "~55.0.8",
+    "expo-secure-store": "~55.0.8",
+    "expo-sqlite": "~55.0.10",
+    "expo-status-bar": "~55.0.4",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0"
+  },
+  "devDependencies": {
+    "@react-native-community/cli": "^16.0.0",
+    "@react-native/metro-config": "^0.76.0",
+    "@types/react": "^19.2.10",
+    "babel-preset-expo": "^55.0.10",
+    "typescript": "^5.6.2"
+  }
+}

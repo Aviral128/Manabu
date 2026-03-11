@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  LEARNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  MIXED
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         Role          @default(LEARNER)
+  status       UserStatus    @default(ACTIVE)
+  avatarUrl    String?       @map("avatar_url")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  attempts     QuizAttempt[]
+  leaderboard  Leaderboard?
+  adminLogs    AdminLog[]    @relation("AdminActor")
+
+  @@map("users")
+}
+
+model Quiz {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  description String?
+  category    String?
+  difficulty  Difficulty    @default(MEDIUM)
+  estimatedMinutes Int      @default(15) @map("estimated_minutes")
+  isSpecial   Boolean       @default(false) @map("is_special")
+  tags        Json          @default("[]")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  questions   Question[]
+  attempts    QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id          String     @id @default(cuid())
+  quizId      String     @map("quiz_id")
+  prompt      String
+  options     Json
+  answerIndex Int        @map("answer_index")
+  explanation String?
+  order       Int
+  difficulty  Difficulty @default(MEDIUM)
+  quiz        Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("questions")
+}
+
+model QuizAttempt {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  quizId         String   @map("quiz_id")
+  score          Int
+  xpEarned       Int      @map("xp_earned")
+  correctAnswers Int      @map("correct_answers")
+  totalQuestions Int      @map("total_questions")
+  completedAt    DateTime @default(now()) @map("completed_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_attempts")
+}
+
+model Leaderboard {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  points    Int      @default(0)
+  level     Int      @default(1)
+  badges    Json     @default("[]")
+  streak    Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("leaderboard")
+}
+
+model AdminLog {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation("AdminActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("admin_logs")
+}

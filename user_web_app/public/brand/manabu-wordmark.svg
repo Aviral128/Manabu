@@ -1,0 +1,24 @@
+<svg width="360" height="120" viewBox="0 0 360 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ring" x1="35" y1="18" x2="105" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8" />
+      <stop offset="0.55" stop-color="#2563EB" />
+      <stop offset="1" stop-color="#F59E0B" />
+    </linearGradient>
+    <linearGradient id="book" x1="52" y1="66" x2="89" y2="94" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#D9F4FF" />
+    </linearGradient>
+    <linearGradient id="text" x1="122" y1="34" x2="318" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC" />
+      <stop offset="1" stop-color="#CBD5E1" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="352" height="112" rx="32" fill="#07111B" stroke="rgba(255,255,255,0.12)" />
+  <circle cx="70" cy="60" r="37" stroke="url(#ring)" stroke-width="8" />
+  <path d="M50 77C57 71.5 63.8 69 70.5 69C77.2 69 84.1 71.5 91 77V48.5C83.8 43.5 76.9 41 70.5 41C64.1 41 57.3 43.5 50 48.5V77Z" fill="url(#book)" />
+  <path d="M70.5 41V69" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M70.5 31L74.5 43H66.5L70.5 31Z" fill="#38BDF8" />
+  <text x="122" y="67" fill="url(#text)" font-family="'Segoe UI', Arial, sans-serif" font-size="42" font-weight="800" letter-spacing="1.8">MANABU</text>
+  <text x="124" y="88" fill="#7DD3FC" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="2.8">AI LEARNING PLATFORM</text>
+</svg>

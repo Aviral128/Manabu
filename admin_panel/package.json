@@ -1,0 +1,29 @@
+{
+  "name": "manabu-admin-panel",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "lint": "tsc --noEmit",
+    "start": "next start -H 0.0.0.0 --port 3001",
+    "test": "npm run build"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "next": "15.5.10",
+    "next-themes": "^0.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "axios": "^1.7.7",
+    "lucide-react": "^0.453.0",
+    "recharts": "^2.12.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "@types/react": "^18.3.5",
+    "@types/node": "^22.5.4"
+  }
+}
+
+

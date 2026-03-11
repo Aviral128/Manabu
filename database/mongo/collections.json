@@ -1,0 +1,74 @@
+{
+  "collections": {
+    "ai_generated_questions": {
+      "description": "Stores AI-generated drafts and approval metadata.",
+      "schema": {
+        "_id": "ObjectId",
+        "topicKey": "string",
+        "difficulty": "string",
+        "version": "int",
+        "prompt": "string",
+        "draftQuestion": {
+          "stem": "string",
+          "options": ["string"],
+          "answerIndex": "int",
+          "explanation": "string"
+        },
+        "quality": {
+          "toxicityScore": "double",
+          "hallucinationRisk": "double",
+          "reviewState": "string"
+        },
+        "createdAt": "date"
+      },
+      "indexes": [
+        { "topicKey": 1, "difficulty": 1, "createdAt": -1 },
+        { "quality.reviewState": 1 }
+      ]
+    },
+    "learning_content_blocks": {
+      "description": "Flexible storage for lesson content, media, and interactive blocks.",
+      "schema": {
+        "_id": "ObjectId",
+        "courseSlug": "string",
+        "unitKey": "string",
+        "topicKey": "string",
+        "language": "string",
+        "blocks": [
+          {
+            "blockType": "string",
+            "payload": "object"
+          }
+        ],
+        "status": "string",
+        "updatedAt": "date"
+      },
+      "indexes": [
+        { "courseSlug": 1, "unitKey": 1, "topicKey": 1 },
+        { "status": 1, "updatedAt": -1 }
+      ]
+    },
+    "ai_tutor_conversations": {
+      "description": "Stores contextual tutor sessions for personalized explanations.",
+      "schema": {
+        "_id": "ObjectId",
+        "userId": "uuid-string",
+        "topicKey": "string",
+        "messages": [
+          {
+            "role": "string",
+            "content": "string",
+            "ts": "date"
+          }
+        ],
+        "safetyFlags": ["string"],
+        "createdAt": "date",
+        "updatedAt": "date"
+      },
+      "indexes": [
+        { "userId": 1, "updatedAt": -1 },
+        { "topicKey": 1 }
+      ]
+    }
+  }
+}
