@@ -25,20 +25,12 @@ enum Difficulty {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  name         String
-  email        String        @unique
-  passwordHash String        @map("password_hash")
-  role         Role          @default(LEARNER)
-  status       UserStatus    @default(ACTIVE)
-  avatarUrl    String?       @map("avatar_url")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  attempts     QuizAttempt[]
-  leaderboard  Leaderboard?
-  adminLogs    AdminLog[]    @relation("AdminActor")
-
-  @@map("users")
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         String   @default("user")
+  createdAt    DateTime @default(now())
 }
 
 model Quiz {
