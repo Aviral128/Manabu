@@ -111,7 +111,7 @@ export function shouldUseAuthDemoStore(error: unknown): boolean {
   }
 
   const message = error instanceof Error ? error.message : String(error ?? "");
-  return /Can't reach database server|P1001|database server|ECONNREFUSED/i.test(message);
+  return /Can't reach database server|P1001|P1012|database server|ECONNREFUSED|Error validating datasource `db`|the URL must start with the protocol/i.test(message);
 }
 
 export async function demoSignup(input: { name: string; email: string; password: string }) {
