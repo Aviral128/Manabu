@@ -28,25 +28,29 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String?
-  passwordHash String
+  passwordHash String   @map("password_hash")
   role         String   @default("user")
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  quizAttempts QuizAttempt[]
+  leaderboard  Leaderboard[]
+  adminLogs    AdminLog[]    @relation("AdminActor")
 }
 
 model Quiz {
-  id          String        @id @default(cuid())
-  title       String
-  slug        String        @unique
-  description String?
-  category    String?
-  difficulty  Difficulty    @default(MEDIUM)
-  estimatedMinutes Int      @default(15) @map("estimated_minutes")
-  isSpecial   Boolean       @default(false) @map("is_special")
-  tags        Json          @default("[]")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  questions   Question[]
-  attempts    QuizAttempt[]
+  id               String        @id @default(cuid())
+  title            String
+  slug             String        @unique
+  description      String?
+  category         String?
+  difficulty       Difficulty    @default(MEDIUM)
+  estimatedMinutes Int           @default(15) @map("estimated_minutes")
+  isSpecial        Boolean       @default(false) @map("is_special")
+  tags             Json          @default("[]")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  questions        Question[]
+  attempts         QuizAttempt[]
 
   @@map("quizzes")
 }
