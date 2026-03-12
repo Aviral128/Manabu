@@ -16,8 +16,8 @@ export default function LoginPage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, state, isReady } = useAuth();
-  const [email, setEmail] = React.useState("learner@manabu.app");
-  const [password, setPassword] = React.useState("StrongPass123");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 

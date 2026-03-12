@@ -12,9 +12,9 @@ import { theme } from "../theme/tokens";
 
 export function SignupScreen({ navigation }: NativeStackScreenProps<RootStackParamList, "Signup">) {
   const { signup } = useAuth();
-  const [name, setName] = React.useState("Learner Demo");
-  const [email, setEmail] = React.useState("newlearner@manabu.app");
-  const [password, setPassword] = React.useState("StrongPass123");
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 

@@ -16,9 +16,9 @@ export default function SignupPage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signup, state, isReady } = useAuth();
-  const [displayName, setDisplayName] = React.useState("Learner");
-  const [email, setEmail] = React.useState("learner@manabu.app");
-  const [password, setPassword] = React.useState("StrongPass123");
+  const [displayName, setDisplayName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
