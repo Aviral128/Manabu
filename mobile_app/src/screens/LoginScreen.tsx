@@ -41,8 +41,8 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<RootStackPara
 
       <Card>
         <View style={{ gap: 12 }}>
-          <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
-          <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry />
+          <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="Enter your email" />
+          <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Enter your password" />
           {error ? <Text style={{ color: theme.colors.danger }}>{error}</Text> : null}
           <Button title={busy ? "Signing in..." : "Login"} onPress={() => void handleLogin()} disabled={busy} />
           <Button title="Create account" variant="ghost" onPress={() => navigation.navigate("Signup")} />

@@ -7,12 +7,14 @@ export function Input({
   label,
   value,
   onChangeText,
+  placeholder,
   secureTextEntry,
   keyboardType,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
+  placeholder?: string;
   secureTextEntry?: boolean;
   keyboardType?: "default" | "email-address" | "numeric";
 }) {
@@ -22,6 +24,7 @@ export function Input({
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        placeholder={placeholder}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         autoCapitalize="none"

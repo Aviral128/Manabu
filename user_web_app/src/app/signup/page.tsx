@@ -68,15 +68,15 @@ export default function SignupPage(): JSX.Element {
           <form onSubmit={onSubmit} style={{ marginTop: 14, display: "grid", gap: 10 }}>
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ color: "var(--muted)", fontSize: 12 }}>Display name</span>
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Enter your full name" required />
             </label>
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ color: "var(--muted)", fontSize: 12 }}>Email</span>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Enter your email" required />
             </label>
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ color: "var(--muted)", fontSize: 12 }}>Password</span>
-              <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+              <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Create a strong password" required />
             </label>
 
             {error ? <div style={{ color: "var(--danger)", fontSize: 13 }}>{error}</div> : null}
