@@ -10,23 +10,39 @@ async function upsertUser(name: string, email: string, password: string, role: R
 
   return prisma.user.upsert({
     where: { email },
-    update: { name, passwordHash, role, status: "ACTIVE" },
-    create: { name, email, passwordHash, role, status: "ACTIVE" },
+    update: { name, passwordHash, role },
+    create: { name, email, passwordHash, role },
   });
 }
 
 async function seedLeaderboard(userId: string, points: number, streak: number, badges: string[]) {
   await prisma.leaderboard.upsert({
     where: { userId },
-    update: { points, level: Math.max(1, Math.floor(points / 150) + 1), streak, badges },
-    create: { userId, points, level: Math.max(1, Math.floor(points / 150) + 1), badges, streak },
+    update: {
+      points,
+      level: Math.max(1, Math.floor(points / 150) + 1),
+      streak,
+      badges,
+    },
+    create: {
+      userId,
+      points,
+      level: Math.max(1, Math.floor(points / 150) + 1),
+      badges,
+      streak,
+    },
   });
 }
 
 async function seedQuiz(quizData: ReturnType<typeof getSeedQuizzes>[number]) {
-  const existing = await prisma.quiz.findUnique({ where: { slug: quizData.slug } });
+  const existing = await prisma.quiz.findUnique({
+    where: { slug: quizData.slug },
+  });
+
   if (existing) {
-    await prisma.question.deleteMany({ where: { quizId: existing.id } });
+    await prisma.question.deleteMany({
+      where: { quizId: existing.id },
+    });
   }
 
   await prisma.quiz.upsert({
@@ -56,9 +72,26 @@ async function seedQuiz(quizData: ReturnType<typeof getSeedQuizzes>[number]) {
 }
 
 async function main() {
-  const admin = await upsertUser("Aviral Sultaniya", "aviral@manabu.app", "StrongPass123", Role.ADMIN);
-  const learner = await upsertUser("Learner Demo", "learner@manabu.app", "StrongPass123", Role.LEARNER);
-  const learnerTwo = await upsertUser("Curious Scholar", "scholar@manabu.app", "StrongPass123", Role.LEARNER);
+  const admin = await upsertUser(
+    "Aviral Sultaniya",
+    "codemva2025@gmail.com",
+    "Sultaniya128",
+    Role.ADMIN
+  );
+
+  const learner = await upsertUser(
+    "Learner Demo",
+    "learner@manabu.app",
+    "StrongPass123",
+    Role.LEARNER
+  );
+
+  const learnerTwo = await upsertUser(
+    "Curious Scholar",
+    "scholar@manabu.app",
+    "StrongPass123",
+    Role.LEARNER
+  );
 
   await seedLeaderboard(admin.id, 540, 9, ["Founder", "Admin"]);
   await seedLeaderboard(learner.id, 220, 4, ["Starter", "Quiz Sprint"]);
