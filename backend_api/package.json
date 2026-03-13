@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "postinstall": "prisma generate",
-    "start": "npx prisma migrate deploy && node dist/server.js",
+    "start": "npm run prisma:deploy && node dist/server.js",
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -16,7 +16,8 @@
     "prisma:seed": "prisma db seed",
     "verify:db": "node scripts/verify-db.cjs",
     "verify:health": "node scripts/verify-health.cjs",
-    "verify:signup": "node scripts/verify-signup.cjs"
+    "verify:signup": "node scripts/verify-signup.cjs",
+    "verify:password-reset": "node scripts/verify-password-reset.cjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -31,6 +32,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "nodemailer": "^7.0.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -40,6 +42,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.5.4",
+    "@types/nodemailer": "^7.0.11",
     "prisma": "^6.7.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.2"

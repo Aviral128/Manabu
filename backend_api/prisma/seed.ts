@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, UserStatus } from "@prisma/client";
 
 import { getSeedQuizzes } from "./quizBank";
 
@@ -10,8 +10,8 @@ async function upsertUser(name: string, email: string, password: string, role: R
 
   return prisma.user.upsert({
     where: { email },
-    update: { name, passwordHash, role },
-    create: { name, email, passwordHash, role },
+    update: { name, passwordHash, role, status: UserStatus.ACTIVE, isEmailVerified: true },
+    create: { name, email, passwordHash, role, status: UserStatus.ACTIVE, isEmailVerified: true },
   });
 }
 

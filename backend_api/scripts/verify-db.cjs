@@ -11,6 +11,7 @@ const expectedTables = [
   "quiz_attempts",
   "leaderboard",
   "admin_logs",
+  "email_otps",
 ];
 
 async function main() {
@@ -21,7 +22,7 @@ async function main() {
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name = ANY (ARRAY['users', 'quizzes', 'questions', 'quiz_attempts', 'leaderboard', 'admin_logs'])
+        AND table_name = ANY (ARRAY['users', 'quizzes', 'questions', 'quiz_attempts', 'leaderboard', 'admin_logs', 'email_otps'])
       ORDER BY table_name
     `);
 

@@ -8,7 +8,7 @@ import * as quizService from "../services/quizService";
 const userUpdateSchema = z.object({
   displayName: z.string().min(2).optional(),
   role: z.enum(["admin", "learner"]).optional(),
-  status: z.enum(["active", "suspended"]).optional(),
+  status: z.enum(["pending", "active", "suspended"]).optional(),
   avatarUrl: z.string().url().nullable().optional(),
 });
 
