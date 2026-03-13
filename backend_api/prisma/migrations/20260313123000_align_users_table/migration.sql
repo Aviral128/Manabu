@@ -1,0 +1,32 @@
+ALTER TABLE IF EXISTS "User" RENAME TO users;
+
+UPDATE users
+SET name = COALESCE(NULLIF(BTRIM(name), ''), SPLIT_PART(email, '@', 1))
+WHERE name IS NULL OR BTRIM(name) = '';
+
+ALTER TABLE users
+  ALTER COLUMN name SET NOT NULL;
+
+ALTER TABLE users
+  ALTER COLUMN role DROP DEFAULT;
+
+ALTER TABLE users
+  ALTER COLUMN role TYPE "Role"
+  USING (
+    CASE
+      WHEN UPPER(role) = 'ADMIN' THEN 'ADMIN'::"Role"
+      ELSE 'LEARNER'::"Role"
+    END
+  );
+
+ALTER TABLE users
+  ALTER COLUMN role SET DEFAULT 'LEARNER';
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS status "UserStatus" NOT NULL DEFAULT 'ACTIVE',
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+UPDATE users
+SET updated_at = COALESCE(updated_at, created_at);
+
