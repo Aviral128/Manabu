@@ -6,8 +6,7 @@
 "scripts": {
   "dev": "tsx watch src/server.ts",
   "build": "tsc -p tsconfig.json",
-  "prestart": "npx prisma generate && npx prisma db push",
-  "start": "node dist/server.js",
+  "start": "npx prisma db push && node dist/server.js",
   "lint": "tsc --noEmit",
   "prisma:generate": "prisma generate",
   "prisma:push": "prisma db push",
