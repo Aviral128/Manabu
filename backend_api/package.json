@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "main": "dist/server.js",
-"scripts": {
-  "dev": "tsx watch src/server.ts",
-  "build": "tsc -p tsconfig.json",
-  "start": "npx prisma db push && node dist/server.js",
-  "lint": "tsc --noEmit",
-  "prisma:generate": "prisma generate",
-  "prisma:push": "prisma db push",
-  "prisma:seed": "prisma db seed"
-},
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "postinstall": "prisma generate",
+    "start": "prisma db push && node dist/server.js",
+    "lint": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "prisma db seed"
+  },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
@@ -25,9 +26,8 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "zod": "^3.23.8",
-    "prisma": "^6.7.0"
-},
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
