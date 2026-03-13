@@ -35,7 +35,7 @@ model User {
   quizAttempts QuizAttempt[]
   leaderboard  Leaderboard[]
   adminLogs    AdminLog[]    @relation("AdminActor")
-   @@map("User")
+
 }
 
 model Quiz {
