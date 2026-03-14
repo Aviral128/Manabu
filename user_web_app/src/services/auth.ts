@@ -43,12 +43,14 @@ export async function login(payload: LoginPayload): Promise<AuthMutationResponse
   });
 }
 
-export async function register(payload: RegisterPayload): Promise<MessageResponse> {
+export async function signup(payload: RegisterPayload): Promise<MessageResponse> {
   return requestAuth<MessageResponse>("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
+
+export const register = signup;
 
 export async function requestMagicLink(email: string): Promise<MessageResponse> {
   return requestAuth<MessageResponse>("/api/auth/magic-login", {

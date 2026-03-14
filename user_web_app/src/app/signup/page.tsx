@@ -99,17 +99,14 @@ export default function SignupPage(): JSX.Element {
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
               Already have an account? <Link href="/login" style={{ textDecoration: "underline" }}>Login</Link>
             </div>
-<<<<<<< HEAD
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
               Prefer passwordless? <Link href="/login" style={{ textDecoration: "underline" }}>Send yourself a magic link instead</Link>
             </div>
-=======
             {success ? (
               <div style={{ color: "var(--muted)", fontSize: 13 }}>
                 Check your inbox, click the verification link, then return to <Link href="/login" style={{ textDecoration: "underline" }}>login</Link>.
               </div>
             ) : null}
->>>>>>> 2190baf (require email verification for signup)
           </form>
         </Card>
       </div>
