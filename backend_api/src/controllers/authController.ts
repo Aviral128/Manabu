@@ -18,14 +18,8 @@ const emailSchema = z.object({
   email: z.string().email(),
 });
 
-const verifyEmailSchema = z.object({
-  email: z.string().email(),
-  otp: z.string().regex(/^\d{6}$/, "OTP must be a 6-digit code."),
-});
-
 const resetPasswordSchema = z.object({
-  email: z.string().email(),
-  otp: z.string().regex(/^\d{6}$/, "OTP must be a 6-digit code."),
+  token: z.string().min(32),
   newPassword: z.string().min(8),
 });
 
@@ -57,15 +51,15 @@ export async function updateMe(request: Request, response: Response) {
   return response.json({ success: true, user: result });
 }
 
-export async function sendVerificationOtp(request: Request, response: Response) {
+export async function magicLogin(request: Request, response: Response) {
   const input = emailSchema.parse(request.body);
-  const result = await authService.sendVerificationOtp(input);
+  const result = await authService.requestMagicLogin(input);
   return response.json(result);
 }
 
-export async function verifyEmail(request: Request, response: Response) {
-  const input = verifyEmailSchema.parse(request.body);
-  const result = await authService.verifyEmail(input);
+export async function verifyMagic(request: Request, response: Response) {
+  const token = String(request.query.token ?? "").trim();
+  const result = await authService.verifyMagicLogin(token);
   return response.json(result);
 }
 

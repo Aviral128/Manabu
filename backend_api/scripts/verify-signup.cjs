@@ -1,19 +1,18 @@
 const path = require("node:path");
 const dotenv = require("dotenv");
-const { PrismaClient, EmailOTPType } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 async function main() {
   const { createApp } = require("../dist/app");
-  const { hashOtpCode } = require("../dist/utils/otp");
   const prisma = new PrismaClient();
-  const email = `codex-smoke-${Date.now()}@example.com`;
-  const otp = "123456";
+  const email = `codex-signup-${Date.now()}@example.com`;
+  const password = "StrongPass123";
   const app = createApp();
 
   try {
-    const signupPayload = await new Promise((resolve, reject) => {
+    const payload = await new Promise((resolve, reject) => {
       const server = app.listen(0, "127.0.0.1", async () => {
         const address = server.address();
 
@@ -22,49 +21,31 @@ async function main() {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
-              name: "Codex Smoke",
+              name: "Codex Signup",
               email,
-              password: "StrongPass123",
+              password,
             }),
           });
 
           const signupBody = await signupResponse.json();
-          if (
-            signupResponse.status !== 201 ||
-            signupBody.success !== true ||
-            signupBody.requiresEmailVerification !== true ||
-            signupBody.user?.status !== "pending"
-          ) {
+          if (signupResponse.status !== 201 || signupBody.success !== true || signupBody.user?.email !== email || !signupBody.token) {
             throw new Error(`Signup smoke test failed with status ${signupResponse.status}: ${JSON.stringify(signupBody)}`);
           }
 
-          await prisma.emailOTP.deleteMany({
-            where: { email, type: EmailOTPType.VERIFY_EMAIL },
-          });
-
-          await prisma.emailOTP.create({
-            data: {
-              email,
-              otpHash: hashOtpCode(email, EmailOTPType.VERIFY_EMAIL, otp),
-              type: EmailOTPType.VERIFY_EMAIL,
-              expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-            },
-          });
-
-          const verifyResponse = await fetch(`http://127.0.0.1:${address.port}/api/auth/verify-email`, {
+          const loginResponse = await fetch(`http://127.0.0.1:${address.port}/api/auth/login`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ email, otp }),
+            body: JSON.stringify({ email, password }),
           });
 
-          const verifyBody = await verifyResponse.json();
-          if (verifyResponse.status !== 200 || verifyBody.success !== true || verifyBody.user?.status !== "active" || !verifyBody.token) {
-            throw new Error(`Verify email smoke test failed with status ${verifyResponse.status}: ${JSON.stringify(verifyBody)}`);
+          const loginBody = await loginResponse.json();
+          if (loginResponse.status !== 200 || loginBody.success !== true || !loginBody.token) {
+            throw new Error(`Password login smoke test failed with status ${loginResponse.status}: ${JSON.stringify(loginBody)}`);
           }
 
           resolve({
             signup: { status: signupResponse.status, body: signupBody },
-            verifyEmail: { status: verifyResponse.status, body: verifyBody },
+            login: { status: loginResponse.status, body: loginBody },
           });
         } catch (error) {
           reject(error);
@@ -74,9 +55,11 @@ async function main() {
       });
     });
 
-    console.log(`Verified OTP signup flow: ${JSON.stringify(signupPayload)}`);
+    console.log(`Verified signup + password login flow: ${JSON.stringify(payload)}`);
   } finally {
-    await prisma.emailOTP.deleteMany({ where: { email } });
+    await prisma.passwordResetToken.deleteMany({ where: { email } });
+    await prisma.magicLinkToken.deleteMany({ where: { email } });
+    await prisma.leaderboard.deleteMany({ where: { user: { email } } });
     await prisma.user.deleteMany({ where: { email } });
     await prisma.$disconnect();
   }

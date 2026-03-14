@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { EmailOTPType, Prisma, Role, UserStatus } from "@prisma/client";
+import { Prisma, Role, UserStatus } from "@prisma/client";
 
 import { env } from "../config/env";
 import {
@@ -8,19 +8,19 @@ import {
   demoForgotPassword,
   demoGetProfile,
   demoListUsers,
+  demoRequestMagicLogin,
   demoResetPassword,
-  demoSendVerificationOtp,
   demoSignup,
   demoUpdateProfile,
   demoUpdateUser,
-  demoVerifyEmail,
+  demoVerifyMagicLogin,
   shouldUseAuthDemoStore,
 } from "../lib/authDemoStore";
 import { prisma } from "../lib/prisma";
-import { sendPasswordResetOTP, sendVerificationOTP } from "./emailService";
+import { sendMagicLoginEmail, sendPasswordResetEmail } from "./emailService";
 import { AppError } from "../utils/appError";
 import { signToken } from "../utils/jwt";
-import { generateOtpCode, getOtpExpiryDate, hashOtpCode, normalizeEmail, otpMatches } from "../utils/otp";
+import { generateMagicToken } from "../utils/magicToken";
 
 type DatabaseClient = typeof prisma | Prisma.TransactionClient;
 
@@ -38,6 +38,10 @@ function toRole(email: string): Role {
   return env.adminEmails.includes(email.toLowerCase()) || email.toLowerCase().includes("aviral") ? Role.ADMIN : Role.LEARNER;
 }
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
 function roleLabel(role: Role): "admin" | "learner" {
   return role === Role.ADMIN ? "admin" : "learner";
 }
@@ -46,6 +50,17 @@ function statusLabel(status: UserStatus): "pending" | "active" | "suspended" {
   if (status === UserStatus.PENDING) return "pending";
   if (status === UserStatus.SUSPENDED) return "suspended";
   return "active";
+}
+
+function deriveDisplayName(email: string) {
+  const local = email.split("@")[0] ?? "learner";
+  return (
+    local
+      .replace(/[._-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (character) => character.toUpperCase()) || "Learner"
+  );
 }
 
 function buildUserPayload(user: UserRecord) {
@@ -60,78 +75,160 @@ function buildUserPayload(user: UserRecord) {
   };
 }
 
-function ensureAccountCanLogin(user: Pick<UserRecord, "status" | "isEmailVerified">) {
-  if (user.status === UserStatus.SUSPENDED) {
+function ensureAccountNotSuspended(status: UserStatus) {
+  if (status === UserStatus.SUSPENDED) {
     throw new AppError(403, "ACCOUNT_SUSPENDED", "This account is suspended. Contact an administrator.");
   }
+}
 
-  if (user.status === UserStatus.PENDING || !user.isEmailVerified) {
-    throw new AppError(403, "EMAIL_NOT_VERIFIED", "Verify your email address before logging in.");
+function ensurePasswordLoginAvailable(passwordHash: string | null): asserts passwordHash is string {
+  if (!passwordHash) {
+    throw new AppError(400, "PASSWORD_LOGIN_UNAVAILABLE", "Use a magic link or reset your password to set a password.");
   }
 }
 
-async function issueOtp(client: DatabaseClient, email: string, type: EmailOTPType) {
-  const otp = generateOtpCode();
+function buildMagicLoginLink(token: string) {
+  return `${env.webBaseUrl}/auth/verify?token=${encodeURIComponent(token)}`;
+}
 
-  await client.emailOTP.deleteMany({
-    where: { email, type },
+function buildPasswordResetLink(token: string) {
+  return `${env.webBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+}
+
+function getTokenExpiryDate() {
+  return new Date(Date.now() + env.magicLinkExpiryMinutes * 60_000);
+}
+
+async function ensureLeaderboard(client: DatabaseClient, userId: string) {
+  await client.leaderboard.upsert({
+    where: { userId },
+    update: {},
+    create: {
+      userId,
+      points: 0,
+      level: 1,
+      badges: [],
+      streak: 0,
+    },
+  });
+}
+
+async function issueMagicLinkToken(client: DatabaseClient, email: string) {
+  const token = generateMagicToken();
+
+  await client.magicLinkToken.deleteMany({
+    where: { email },
   });
 
-  await client.emailOTP.create({
+  await client.magicLinkToken.create({
     data: {
       email,
-      otpHash: hashOtpCode(email, type, otp),
-      type,
-      expiresAt: getOtpExpiryDate(),
+      token,
+      expiresAt: getTokenExpiryDate(),
     },
   });
 
-  return otp;
+  return token;
 }
 
-async function consumeOtp(client: DatabaseClient, email: string, type: EmailOTPType, otp: string) {
-  const now = new Date();
+async function issuePasswordResetToken(client: DatabaseClient, email: string) {
+  const token = generateMagicToken();
 
-  await client.emailOTP.deleteMany({
-    where: {
+  await client.passwordResetToken.deleteMany({
+    where: { email },
+  });
+
+  await client.passwordResetToken.create({
+    data: {
       email,
-      type,
-      expiresAt: { lte: now },
+      token,
+      expiresAt: getTokenExpiryDate(),
     },
   });
 
-  const record = await client.emailOTP.findFirst({
-    where: { email, type },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!record || record.expiresAt.getTime() <= now.getTime() || !otpMatches(email, type, otp, record.otpHash)) {
-    throw new AppError(400, "INVALID_OTP", "The OTP is invalid or has expired.");
-  }
-
-  await client.emailOTP.deleteMany({
-    where: { email, type },
-  });
+  return token;
 }
 
-async function sendSignupVerificationEmail(email: string, otp: string) {
-  try {
-    await sendVerificationOTP(email, otp);
-  } catch (error) {
-    console.error("signup_verification_email_failed", error);
-    throw new AppError(
-      503,
-      "EMAIL_DELIVERY_FAILED",
-      "Your account was created, but we could not send the verification code. Request a new code and try again."
-    );
+async function consumeMagicLinkToken(client: DatabaseClient, token: string) {
+  const record = await client.magicLinkToken.findUnique({
+    where: { token },
+  });
+
+  if (!record || record.expiresAt.getTime() <= Date.now()) {
+    if (record) {
+      await client.magicLinkToken.delete({ where: { id: record.id } });
+    }
+    throw new AppError(400, "INVALID_MAGIC_LINK", "This login link is invalid or has expired.");
   }
+
+  await client.magicLinkToken.delete({
+    where: { id: record.id },
+  });
+
+  return record.email;
 }
 
-async function sendOtpBestEffort(label: string, email: string, deliver: () => Promise<void>) {
+async function consumePasswordResetToken(client: DatabaseClient, token: string) {
+  const record = await client.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!record || record.expiresAt.getTime() <= Date.now()) {
+    if (record) {
+      await client.passwordResetToken.delete({ where: { id: record.id } });
+    }
+    throw new AppError(400, "INVALID_RESET_LINK", "This password reset link is invalid or has expired.");
+  }
+
+  await client.passwordResetToken.delete({
+    where: { id: record.id },
+  });
+
+  return record.email;
+}
+
+async function activateOrCreateUser(client: DatabaseClient, email: string) {
+  const existing = await client.user.findUnique({ where: { email } });
+
+  if (existing) {
+    ensureAccountNotSuspended(existing.status);
+
+    const user =
+      existing.status !== UserStatus.ACTIVE || !existing.isEmailVerified
+        ? await client.user.update({
+            where: { id: existing.id },
+            data: {
+              status: UserStatus.ACTIVE,
+              isEmailVerified: true,
+              name: existing.name || deriveDisplayName(email),
+            },
+          })
+        : existing;
+
+    await ensureLeaderboard(client, user.id);
+    return user;
+  }
+
+  const user = await client.user.create({
+    data: {
+      email,
+      name: deriveDisplayName(email),
+      passwordHash: null,
+      role: toRole(email),
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+    },
+  });
+
+  await ensureLeaderboard(client, user.id);
+  return user;
+}
+
+async function sendResetEmailBestEffort(email: string, link: string) {
   try {
-    await deliver();
+    await sendPasswordResetEmail(email, link);
   } catch (error) {
-    console.error(label, { email, error });
+    console.error("password_reset_email_failed", { email, error });
   }
 }
 
@@ -141,128 +238,97 @@ export async function signup(input: { name: string; email: string; password: str
   const role = toRole(email);
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx) => {
       const existing = await tx.user.findUnique({ where: { email } });
 
-      if (existing?.isEmailVerified) {
-        throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
+      if (existing) {
+        ensureAccountNotSuspended(existing.status);
+
+        if (existing.passwordHash) {
+          throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
+        }
+
+        const updated = await tx.user.update({
+          where: { id: existing.id },
+          data: {
+            name: input.name.trim(),
+            passwordHash,
+            role,
+            status: UserStatus.ACTIVE,
+            isEmailVerified: true,
+          },
+        });
+
+        await ensureLeaderboard(tx, updated.id);
+        return updated;
       }
 
-      const userData = {
-        name: input.name.trim(),
-        email,
-        passwordHash,
-        role,
-        status: UserStatus.PENDING,
-        isEmailVerified: false,
-      };
+      const created = await tx.user.create({
+        data: {
+          name: input.name.trim(),
+          email,
+          passwordHash,
+          role,
+          status: UserStatus.ACTIVE,
+          isEmailVerified: true,
+        },
+      });
 
-      const user = existing
-        ? await tx.user.update({
-            where: { id: existing.id },
-            data: userData,
-          })
-        : await tx.user.create({
-            data: userData,
-          });
-
-      const otp = await issueOtp(tx, email, EmailOTPType.VERIFY_EMAIL);
-      return { user, otp };
+      await ensureLeaderboard(tx, created.id);
+      return created;
     });
 
-    await sendSignupVerificationEmail(email, result.otp);
-
-    return {
-      success: true as const,
-      requiresEmailVerification: true as const,
-      message: "Verification OTP sent to your email address.",
-      user: buildUserPayload(result.user),
-    };
+    const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
+    return { success: true as const, user: buildUserPayload(user), token };
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
-    const result = await demoSignup(input, role);
-    await sendSignupVerificationEmail(email, result.otp);
-
-    return {
-      success: true as const,
-      requiresEmailVerification: true as const,
-      message: "Verification OTP sent to your email address.",
-      user: buildUserPayload(result.user),
-    };
+    const user = await demoSignup(input, role);
+    const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
+    return { success: true as const, user: buildUserPayload(user), token };
   }
 }
 
-export async function sendVerificationOtp(input: { email: string }) {
+export async function requestMagicLogin(input: { email: string }) {
   const email = normalizeEmail(input.email);
   const response = {
     success: true as const,
-    message: "If the account is awaiting verification, a new OTP has been sent.",
+    message: "Login link sent if email exists",
   };
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || user.isEmailVerified) {
-      return response;
-    }
-
-    const otp = await prisma.$transaction(async (tx) => issueOtp(tx, email, EmailOTPType.VERIFY_EMAIL));
-    await sendOtpBestEffort("verification_otp_delivery_failed", email, () => sendVerificationOTP(email, otp));
+    const token = await prisma.$transaction(async (tx) => issueMagicLinkToken(tx, email));
+    await sendMagicLoginEmail(email, buildMagicLoginLink(token));
     return response;
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
-    const otp = await demoSendVerificationOtp(email);
-    if (otp) {
-      await sendOtpBestEffort("demo_verification_otp_delivery_failed", email, () => sendVerificationOTP(email, otp));
-    }
+    const token = await demoRequestMagicLogin(email);
+    await sendMagicLoginEmail(email, buildMagicLoginLink(token));
     return response;
   }
 }
 
-export async function verifyEmail(input: { email: string; otp: string }) {
-  const email = normalizeEmail(input.email);
+export async function verifyMagicLogin(token: string) {
+  const rawToken = token.trim();
+  if (!rawToken) {
+    throw new AppError(400, "INVALID_MAGIC_LINK", "This login link is invalid or has expired.");
+  }
 
   try {
     const user = await prisma.$transaction(async (tx) => {
-      const existing = await tx.user.findUnique({ where: { email } });
-      if (!existing) {
-        throw new AppError(400, "INVALID_OTP", "The OTP is invalid or has expired.");
-      }
-
-      await consumeOtp(tx, email, EmailOTPType.VERIFY_EMAIL, input.otp);
-
-      const verifiedUser = await tx.user.update({
-        where: { id: existing.id },
-        data: {
-          isEmailVerified: true,
-          status: UserStatus.ACTIVE,
-        },
-      });
-
-      await tx.leaderboard.upsert({
-        where: { userId: verifiedUser.id },
-        update: {},
-        create: {
-          userId: verifiedUser.id,
-          points: 0,
-          level: 1,
-          badges: [],
-          streak: 0,
-        },
-      });
-
-      return verifiedUser;
+      const email = await consumeMagicLinkToken(tx, rawToken);
+      return activateOrCreateUser(tx, email);
     });
 
-    const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
-    return { success: true as const, user: buildUserPayload(user), token };
+    const jwt = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
+    return { success: true as const, token: jwt, user: buildUserPayload(user) };
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
-    const user = await demoVerifyEmail({ email, otp: input.otp });
-    const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
-    return { success: true as const, user: buildUserPayload(user), token };
+    const user = await demoVerifyMagicLogin(rawToken);
+    const jwt = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
+    return { success: true as const, token: jwt, user: buildUserPayload(user) };
   }
 }
 
@@ -270,16 +336,27 @@ export async function login(input: { email: string; password: string }) {
   const email = normalizeEmail(input.email);
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new AppError(404, "ACCOUNT_NOT_FOUND", "No account was found for this email.");
     }
 
-    ensureAccountCanLogin(user);
+    ensureAccountNotSuspended(user.status);
+    ensurePasswordLoginAvailable(user.passwordHash);
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid) {
       throw new AppError(401, "INVALID_PASSWORD", "Incorrect password.");
+    }
+
+    if (user.status !== UserStatus.ACTIVE || !user.isEmailVerified) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          status: UserStatus.ACTIVE,
+          isEmailVerified: true,
+        },
+      });
     }
 
     const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
@@ -292,7 +369,8 @@ export async function login(input: { email: string; password: string }) {
       throw new AppError(404, "ACCOUNT_NOT_FOUND", "No account was found for this email.");
     }
 
-    ensureAccountCanLogin(user);
+    ensureAccountNotSuspended(user.status);
+    ensurePasswordLoginAvailable(user.passwordHash);
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid) {
@@ -308,65 +386,69 @@ export async function forgotPassword(input: { email: string }) {
   const email = normalizeEmail(input.email);
   const response = {
     success: true as const,
-    message: "If the account exists, a password reset OTP has been sent.",
+    message: "If the account exists, a reset link has been sent.",
   };
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.isEmailVerified || user.status === UserStatus.PENDING) {
+    if (!user || user.status === UserStatus.SUSPENDED) {
       return response;
     }
 
-    const otp = await prisma.$transaction(async (tx) => issueOtp(tx, email, EmailOTPType.RESET_PASSWORD));
-    await sendOtpBestEffort("password_reset_otp_delivery_failed", email, () => sendPasswordResetOTP(email, otp));
+    const token = await prisma.$transaction(async (tx) => issuePasswordResetToken(tx, email));
+    await sendResetEmailBestEffort(email, buildPasswordResetLink(token));
     return response;
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
-    const otp = await demoForgotPassword(email);
-    if (otp) {
-      await sendOtpBestEffort("demo_password_reset_otp_delivery_failed", email, () => sendPasswordResetOTP(email, otp));
+    const token = await demoForgotPassword(email);
+    if (token) {
+      await sendResetEmailBestEffort(email, buildPasswordResetLink(token));
     }
     return response;
   }
 }
 
-export async function resetPassword(input: { email: string; otp: string; newPassword: string }) {
-  const email = normalizeEmail(input.email);
+export async function resetPassword(input: { token: string; newPassword: string }) {
+  const rawToken = input.token.trim();
+  if (!rawToken) {
+    throw new AppError(400, "INVALID_RESET_LINK", "This password reset link is invalid or has expired.");
+  }
+
   const passwordHash = await bcrypt.hash(input.newPassword, 10);
 
   try {
     await prisma.$transaction(async (tx) => {
+      const email = await consumePasswordResetToken(tx, rawToken);
       const user = await tx.user.findUnique({ where: { email } });
-      if (!user || !user.isEmailVerified) {
-        throw new AppError(400, "INVALID_OTP", "The OTP is invalid or has expired.");
+      if (!user) {
+        throw new AppError(400, "INVALID_RESET_LINK", "This password reset link is invalid or has expired.");
       }
 
-      await consumeOtp(tx, email, EmailOTPType.RESET_PASSWORD, input.otp);
+      ensureAccountNotSuspended(user.status);
 
       await tx.user.update({
         where: { id: user.id },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          status: UserStatus.ACTIVE,
+          isEmailVerified: true,
+        },
       });
+
+      await ensureLeaderboard(tx, user.id);
     });
 
-    return {
-      success: true as const,
-      message: "Password reset successfully.",
-    };
+    return { success: true as const, message: "Password reset successfully." };
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
     await demoResetPassword({
-      email,
-      otp: input.otp,
+      token: rawToken,
       newPassword: input.newPassword,
     });
 
-    return {
-      success: true as const,
-      message: "Password reset successfully.",
-    };
+    return { success: true as const, message: "Password reset successfully." };
   }
 }
 
@@ -496,6 +578,9 @@ export async function updateUser(
       input.status === "suspended" ? UserStatus.SUSPENDED : input.status === "pending" ? UserStatus.PENDING : UserStatus.ACTIVE;
     if (input.status === "pending") {
       data.isEmailVerified = false;
+    }
+    if (input.status === "active") {
+      data.isEmailVerified = true;
     }
   }
   if ("avatarUrl" in input) {

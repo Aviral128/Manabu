@@ -1,48 +1,63 @@
 import { Resend } from "resend";
+
 import { env } from "../config/env";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | null = null;
 
-async function sendOTPEmail(input: {
-  email: string;
-  otp: string;
-  subject: string;
-  heading: string;
-  intro: string;
-}) {
-  const expiresInMinutes = env.otpExpiryMinutes;
+function getResendClient() {
+  if (!env.resendApiKey) return null;
+  if (!resend) {
+    resend = new Resend(env.resendApiKey);
+  }
+  return resend;
+}
 
-  await resend.emails.send({
-    from: "MANABU <onboarding@resend.dev>",
+async function sendEmail(input: { email: string; subject: string; html: string }) {
+  const client = getResendClient();
+
+  if (!client) {
+    console.info("email_preview", {
+      to: input.email,
+      subject: input.subject,
+      html: input.html,
+    });
+    return;
+  }
+
+  await client.emails.send({
+    from: `MANABU <${env.resendFromEmail}>`,
     to: input.email,
     subject: input.subject,
+    html: input.html,
+  });
+}
+
+export async function sendMagicLoginEmail(email: string, link: string) {
+  await sendEmail({
+    email,
+    subject: "Login to MANABU",
     html: `
-      <div style="font-family: Arial; line-height:1.6;">
-        <h2>${input.heading}</h2>
-        <p>${input.intro}</p>
-        <h1 style="letter-spacing:6px;">${input.otp}</h1>
-        <p>This code expires in ${expiresInMinutes} minutes.</p>
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
+        <h2>Login to MANABU</h2>
+        <p>Click the link below to login.</p>
+        <p><a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">Login</a></p>
+        <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
       </div>
     `,
   });
 }
 
-export async function sendVerificationOTP(email: string, otp: string) {
-  await sendOTPEmail({
+export async function sendPasswordResetEmail(email: string, link: string) {
+  await sendEmail({
     email,
-    otp,
-    subject: "Verify your MANABU account",
-    heading: "Verify your email",
-    intro: "Use the following OTP to activate your MANABU account.",
-  });
-}
-
-export async function sendPasswordResetOTP(email: string, otp: string) {
-  await sendOTPEmail({
-    email,
-    otp,
     subject: "Reset your MANABU password",
-    heading: "Password reset request",
-    intro: "Use the following OTP to reset your password.",
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
+        <h2>Reset your MANABU password</h2>
+        <p>Click the link below to choose a new password.</p>
+        <p><a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">Reset password</a></p>
+        <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
+      </div>
+    `,
   });
 }

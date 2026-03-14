@@ -12,7 +12,7 @@ function rateLimitKey(request: { ip?: string; body?: { email?: unknown } }) {
   return `${request.ip ?? "unknown"}:${email}`;
 }
 
-const otpIssueLimiter = rateLimit({
+const authRequestLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
   standardHeaders: true,
@@ -20,32 +20,32 @@ const otpIssueLimiter = rateLimit({
   keyGenerator: rateLimitKey,
   handler: (_request, response) => {
     response.status(429).json({
-      code: "OTP_RATE_LIMITED",
-      message: "Too many OTP requests. Please wait before trying again.",
+      code: "AUTH_RATE_LIMITED",
+      message: "Too many authentication requests. Please wait before trying again.",
     });
   },
 });
 
-const otpVerifyLimiter = rateLimit({
+const tokenVerifyLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 10,
+  limit: 15,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKey,
   handler: (_request, response) => {
     response.status(429).json({
-      code: "OTP_ATTEMPTS_LIMITED",
-      message: "Too many OTP verification attempts. Please wait before trying again.",
+      code: "TOKEN_ATTEMPTS_LIMITED",
+      message: "Too many token verification attempts. Please wait before trying again.",
     });
   },
 });
 
-router.post("/signup", otpIssueLimiter, asyncHandler(authController.signup));
-router.post("/login", asyncHandler(authController.login));
-router.post("/send-verification-otp", otpIssueLimiter, asyncHandler(authController.sendVerificationOtp));
-router.post("/verify-email", otpVerifyLimiter, asyncHandler(authController.verifyEmail));
-router.post("/forgot-password", otpIssueLimiter, asyncHandler(authController.forgotPassword));
-router.post("/reset-password", otpVerifyLimiter, asyncHandler(authController.resetPassword));
+router.post("/signup", authRequestLimiter, asyncHandler(authController.signup));
+router.post("/login", authRequestLimiter, asyncHandler(authController.login));
+router.post("/magic-login", authRequestLimiter, asyncHandler(authController.magicLogin));
+router.get("/verify-magic", tokenVerifyLimiter, asyncHandler(authController.verifyMagic));
+router.post("/forgot-password", authRequestLimiter, asyncHandler(authController.forgotPassword));
+router.post("/reset-password", authRequestLimiter, asyncHandler(authController.resetPassword));
 router.get("/me", authenticate, asyncHandler(authController.me));
 router.patch("/me", authenticate, asyncHandler(authController.updateMe));
 

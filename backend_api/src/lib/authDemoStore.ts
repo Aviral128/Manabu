@@ -1,17 +1,17 @@
 import bcrypt from "bcryptjs";
-import { EmailOTPType, Role, UserStatus } from "@prisma/client";
+import { Role, UserStatus } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { AppError } from "../utils/appError";
-import { generateOtpCode, getOtpExpiryDate, hashOtpCode, normalizeEmail, otpMatches } from "../utils/otp";
+import { generateMagicToken } from "../utils/magicToken";
 
 type DemoUser = {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   role: Role;
   status: UserStatus;
   isEmailVerified: boolean;
@@ -30,11 +30,10 @@ type DemoLeaderboard = {
   updatedAt: string;
 };
 
-type DemoEmailOTP = {
+type DemoTokenRecord = {
   id: string;
   email: string;
-  otpHash: string;
-  type: EmailOTPType;
+  token: string;
   expiresAt: string;
   createdAt: string;
 };
@@ -42,10 +41,12 @@ type DemoEmailOTP = {
 type AuthDemoStore = {
   users: DemoUser[];
   leaderboards: DemoLeaderboard[];
-  emailOtps: DemoEmailOTP[];
+  magicLinkTokens: DemoTokenRecord[];
+  passwordResetTokens: DemoTokenRecord[];
 };
 
 const storePath = path.resolve(process.cwd(), ".local", "auth-demo-store.json");
+const TOKEN_EXPIRY_MS = 10 * 60 * 1000;
 
 function nowIso() {
   return new Date().toISOString();
@@ -53,6 +54,25 @@ function nowIso() {
 
 function makeId(prefix: string) {
   return `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function deriveDisplayName(email: string) {
+  const local = email.split("@")[0] ?? "learner";
+  return (
+    local
+      .replace(/[._-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (character) => character.toUpperCase()) || "Learner"
+  );
+}
+
+function getTokenExpiryIso() {
+  return new Date(Date.now() + TOKEN_EXPIRY_MS).toISOString();
 }
 
 async function seedStore(): Promise<AuthDemoStore> {
@@ -88,21 +108,27 @@ async function seedStore(): Promise<AuthDemoStore> {
       { id: makeId("lb"), userId: "usr_learner", points: 40, level: 1, badges: ["Starter"], streak: 2, updatedAt: createdAt },
       { id: makeId("lb"), userId: "usr_admin", points: 120, level: 1, badges: ["Builder"], streak: 4, updatedAt: createdAt },
     ],
-    emailOtps: [],
+    magicLinkTokens: [],
+    passwordResetTokens: [],
   };
 }
 
 function upgradeStore(store: AuthDemoStore | Record<string, unknown>) {
   const users = Array.isArray(store.users) ? store.users : [];
   const leaderboards = Array.isArray(store.leaderboards) ? store.leaderboards : [];
-  const emailOtps = Array.isArray(store.emailOtps) ? store.emailOtps : [];
+  const magicLinkTokens = Array.isArray((store as { magicLinkTokens?: unknown[] }).magicLinkTokens)
+    ? ((store as { magicLinkTokens?: unknown[] }).magicLinkTokens as DemoTokenRecord[])
+    : [];
+  const passwordResetTokens = Array.isArray((store as { passwordResetTokens?: unknown[] }).passwordResetTokens)
+    ? ((store as { passwordResetTokens?: unknown[] }).passwordResetTokens as DemoTokenRecord[])
+    : [];
 
   return {
     users: users.map((user) => ({
       id: String((user as DemoUser).id),
       name: String((user as DemoUser).name ?? ""),
       email: normalizeEmail(String((user as DemoUser).email ?? "")),
-      passwordHash: String((user as DemoUser).passwordHash ?? ""),
+      passwordHash: typeof (user as DemoUser).passwordHash === "string" ? (user as DemoUser).passwordHash : null,
       role: (user as DemoUser).role ?? Role.LEARNER,
       status: (user as DemoUser).status ?? UserStatus.ACTIVE,
       isEmailVerified: (user as DemoUser).isEmailVerified ?? (user as DemoUser).status !== UserStatus.PENDING,
@@ -111,7 +137,8 @@ function upgradeStore(store: AuthDemoStore | Record<string, unknown>) {
       updatedAt: String((user as DemoUser).updatedAt ?? (user as DemoUser).createdAt ?? nowIso()),
     })),
     leaderboards: leaderboards as DemoLeaderboard[],
-    emailOtps: emailOtps as DemoEmailOTP[],
+    magicLinkTokens,
+    passwordResetTokens,
   } satisfies AuthDemoStore;
 }
 
@@ -143,33 +170,39 @@ function ensureLeaderboard(store: AuthDemoStore, userId: string) {
   return leaderboard;
 }
 
-function createOtpRecord(store: AuthDemoStore, email: string, type: EmailOTPType) {
-  const otp = generateOtpCode();
-  store.emailOtps = store.emailOtps.filter((record) => !(record.email === email && record.type === type));
-  store.emailOtps.push({
-    id: makeId("otp"),
-    email,
-    otpHash: hashOtpCode(email, type, otp),
-    type,
-    expiresAt: getOtpExpiryDate().toISOString(),
-    createdAt: nowIso(),
-  });
-  return otp;
+function ensureAccountNotSuspended(status: UserStatus) {
+  if (status === UserStatus.SUSPENDED) {
+    throw new AppError(403, "ACCOUNT_SUSPENDED", "This account is suspended. Contact an administrator.");
+  }
 }
 
-function consumeOtp(store: AuthDemoStore, email: string, type: EmailOTPType, otp: string) {
-  const now = Date.now();
-  store.emailOtps = store.emailOtps.filter((record) => new Date(record.expiresAt).getTime() > now);
+function addTokenRecord(records: DemoTokenRecord[], email: string) {
+  const token = generateMagicToken();
+  const next = records.filter((record) => record.email !== email);
+  next.push({
+    id: makeId("tok"),
+    email,
+    token,
+    expiresAt: getTokenExpiryIso(),
+    createdAt: nowIso(),
+  });
+  records.splice(0, records.length, ...next);
+  return token;
+}
 
-  const record = [...store.emailOtps]
-    .filter((item) => item.email === email && item.type === type)
-    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
-
-  if (!record || new Date(record.expiresAt).getTime() <= now || !otpMatches(email, type, otp, record.otpHash)) {
-    throw new AppError(400, "INVALID_OTP", "The OTP is invalid or has expired.");
+function consumeToken(records: DemoTokenRecord[], token: string, invalidCode: string, invalidMessage: string) {
+  const record = records.find((item) => item.token === token);
+  if (!record || new Date(record.expiresAt).getTime() <= Date.now()) {
+    if (record) {
+      const index = records.findIndex((item) => item.id === record.id);
+      if (index >= 0) records.splice(index, 1);
+    }
+    throw new AppError(400, invalidCode, invalidMessage);
   }
 
-  store.emailOtps = store.emailOtps.filter((item) => !(item.email === email && item.type === type));
+  const index = records.findIndex((item) => item.id === record.id);
+  if (index >= 0) records.splice(index, 1);
+  return record.email;
 }
 
 export function shouldUseAuthDemoStore(error: unknown): boolean {
@@ -185,82 +218,105 @@ export async function demoSignup(input: { name: string; email: string; password:
   const email = normalizeEmail(input.email);
   const passwordHash = await bcrypt.hash(input.password, 10);
 
-  let result: { user: DemoUser; otp: string } | null = null;
+  let createdUser: DemoUser | null = null;
 
   await updateStore((store) => {
     const existing = store.users.find((user) => user.email === email);
-    if (existing?.isEmailVerified) {
-      throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
+
+    if (existing) {
+      ensureAccountNotSuspended(existing.status);
+
+      if (existing.passwordHash) {
+        throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
+      }
+
+      existing.name = input.name.trim();
+      existing.passwordHash = passwordHash;
+      existing.role = role;
+      existing.status = UserStatus.ACTIVE;
+      existing.isEmailVerified = true;
+      existing.updatedAt = nowIso();
+      ensureLeaderboard(store, existing.id);
+      createdUser = existing;
+      return;
     }
 
     const timestamp = nowIso();
-    const user = existing
-      ? Object.assign(existing, {
-          name: input.name.trim(),
-          passwordHash,
-          role,
-          status: UserStatus.PENDING,
-          isEmailVerified: false,
-          updatedAt: timestamp,
-        })
-      : {
-          id: makeId("usr"),
-          name: input.name.trim(),
-          email,
-          passwordHash,
-          role,
-          status: UserStatus.PENDING,
-          isEmailVerified: false,
-          avatarUrl: null,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        };
-
-    if (!existing) {
-      store.users.push(user);
-    }
-
-    result = {
-      user,
-      otp: createOtpRecord(store, email, EmailOTPType.VERIFY_EMAIL),
+    const user: DemoUser = {
+      id: makeId("usr"),
+      name: input.name.trim(),
+      email,
+      passwordHash,
+      role,
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+      avatarUrl: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
+
+    store.users.push(user);
+    ensureLeaderboard(store, user.id);
+    createdUser = user;
   });
 
-  return result!;
+  return createdUser!;
 }
 
-export async function demoSendVerificationOtp(email: string) {
+export async function demoRequestMagicLogin(email: string) {
   const normalizedEmail = normalizeEmail(email);
-  let otp: string | null = null;
+  let token = "";
 
   await updateStore((store) => {
-    const user = store.users.find((item) => item.email === normalizedEmail);
-    if (!user || user.isEmailVerified) return;
-    otp = createOtpRecord(store, normalizedEmail, EmailOTPType.VERIFY_EMAIL);
+    token = addTokenRecord(store.magicLinkTokens, normalizedEmail);
   });
 
-  return otp;
+  return token;
 }
 
-export async function demoVerifyEmail(input: { email: string; otp: string }) {
-  const email = normalizeEmail(input.email);
-  let verifiedUser: DemoUser | null = null;
+export async function demoVerifyMagicLogin(token: string) {
+  let resultUser: DemoUser | null = null;
 
   await updateStore((store) => {
-    const user = store.users.find((item) => item.email === email);
-    if (!user) {
-      throw new AppError(400, "INVALID_OTP", "The OTP is invalid or has expired.");
+    const email = consumeToken(
+      store.magicLinkTokens,
+      token,
+      "INVALID_MAGIC_LINK",
+      "This login link is invalid or has expired."
+    );
+
+    const existing = store.users.find((user) => user.email === email);
+    if (existing) {
+      ensureAccountNotSuspended(existing.status);
+      existing.status = UserStatus.ACTIVE;
+      existing.isEmailVerified = true;
+      existing.name = existing.name || deriveDisplayName(email);
+      existing.updatedAt = nowIso();
+      ensureLeaderboard(store, existing.id);
+      resultUser = existing;
+      return;
     }
 
-    consumeOtp(store, email, EmailOTPType.VERIFY_EMAIL, input.otp);
-    user.status = UserStatus.ACTIVE;
-    user.isEmailVerified = true;
-    user.updatedAt = nowIso();
+    const timestamp = nowIso();
+    const user: DemoUser = {
+      id: makeId("usr"),
+      name: deriveDisplayName(email),
+      email,
+      passwordHash: null,
+      role: email.includes("admin") || email.includes("aviral") ? Role.ADMIN : Role.LEARNER,
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+      avatarUrl: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    store.users.push(user);
     ensureLeaderboard(store, user.id);
-    verifiedUser = user;
+    resultUser = user;
   });
 
-  return verifiedUser!;
+  return resultUser!;
 }
 
 export async function demoFindUserByEmail(email: string) {
@@ -270,29 +326,36 @@ export async function demoFindUserByEmail(email: string) {
 
 export async function demoForgotPassword(email: string) {
   const normalizedEmail = normalizeEmail(email);
-  let otp: string | null = null;
+  let token: string | null = null;
 
   await updateStore((store) => {
     const user = store.users.find((item) => item.email === normalizedEmail);
-    if (!user || !user.isEmailVerified || user.status === UserStatus.PENDING) return;
-    otp = createOtpRecord(store, normalizedEmail, EmailOTPType.RESET_PASSWORD);
+    if (!user || user.status === UserStatus.SUSPENDED) return;
+    token = addTokenRecord(store.passwordResetTokens, normalizedEmail);
   });
 
-  return otp;
+  return token;
 }
 
-export async function demoResetPassword(input: { email: string; otp: string; newPassword: string }) {
-  const email = normalizeEmail(input.email);
-
+export async function demoResetPassword(input: { token: string; newPassword: string }) {
   await updateStore((store) => {
+    const email = consumeToken(
+      store.passwordResetTokens,
+      input.token,
+      "INVALID_RESET_LINK",
+      "This password reset link is invalid or has expired."
+    );
     const user = store.users.find((item) => item.email === email);
-    if (!user || !user.isEmailVerified) {
-      throw new AppError(400, "INVALID_OTP", "The OTP is invalid or has expired.");
+    if (!user) {
+      throw new AppError(400, "INVALID_RESET_LINK", "This password reset link is invalid or has expired.");
     }
 
-    consumeOtp(store, email, EmailOTPType.RESET_PASSWORD, input.otp);
+    ensureAccountNotSuspended(user.status);
     user.passwordHash = bcrypt.hashSync(input.newPassword, 10);
+    user.status = UserStatus.ACTIVE;
+    user.isEmailVerified = true;
     user.updatedAt = nowIso();
+    ensureLeaderboard(store, user.id);
   });
 }
 
@@ -360,7 +423,8 @@ export async function demoUpdateUser(
     if (input.status) {
       user.status =
         input.status === "suspended" ? UserStatus.SUSPENDED : input.status === "pending" ? UserStatus.PENDING : UserStatus.ACTIVE;
-      user.isEmailVerified = user.status === UserStatus.PENDING ? false : user.isEmailVerified;
+      if (input.status === "pending") user.isEmailVerified = false;
+      if (input.status === "active") user.isEmailVerified = true;
     }
     if ("avatarUrl" in input) user.avatarUrl = input.avatarUrl?.trim() || null;
     user.updatedAt = nowIso();
@@ -374,8 +438,10 @@ export async function demoDeleteUser(userId: string) {
   await updateStore((store) => {
     const user = store.users.find((item) => item.id === userId);
     if (user) {
-      store.emailOtps = store.emailOtps.filter((otp) => otp.email !== user.email);
+      store.magicLinkTokens = store.magicLinkTokens.filter((token) => token.email !== user.email);
+      store.passwordResetTokens = store.passwordResetTokens.filter((token) => token.email !== user.email);
     }
+
     store.users = store.users.filter((user) => user.id !== userId);
     store.leaderboards = store.leaderboards.filter((leaderboard) => leaderboard.userId !== userId);
   });

@@ -1,16 +1,15 @@
 const path = require("node:path");
 const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs");
-const { PrismaClient, EmailOTPType, Role, UserStatus } = require("@prisma/client");
+const { PrismaClient, Role, UserStatus } = require("@prisma/client");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 async function main() {
   const { createApp } = require("../dist/app");
-  const { hashOtpCode } = require("../dist/utils/otp");
   const prisma = new PrismaClient();
   const email = `codex-reset-${Date.now()}@example.com`;
-  const otp = "654321";
+  const oldPassword = "OldStrongPass123";
   const newPassword = "NewStrongPass123";
   const app = createApp();
 
@@ -19,7 +18,7 @@ async function main() {
       data: {
         name: "Reset Smoke",
         email,
-        passwordHash: await bcrypt.hash("OldStrongPass123", 10),
+        passwordHash: await bcrypt.hash(oldPassword, 10),
         role: Role.LEARNER,
         status: UserStatus.ACTIVE,
         isEmailVerified: true,
@@ -42,23 +41,19 @@ async function main() {
             throw new Error(`Forgot password smoke test failed with status ${forgotResponse.status}: ${JSON.stringify(forgotBody)}`);
           }
 
-          await prisma.emailOTP.deleteMany({
-            where: { email, type: EmailOTPType.RESET_PASSWORD },
+          const resetTokenRecord = await prisma.passwordResetToken.findFirst({
+            where: { email },
+            orderBy: { createdAt: "desc" },
           });
 
-          await prisma.emailOTP.create({
-            data: {
-              email,
-              otpHash: hashOtpCode(email, EmailOTPType.RESET_PASSWORD, otp),
-              type: EmailOTPType.RESET_PASSWORD,
-              expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-            },
-          });
+          if (!resetTokenRecord?.token) {
+            throw new Error("Forgot-password flow did not create a password reset token.");
+          }
 
           const resetResponse = await fetch(`http://127.0.0.1:${address.port}/api/auth/reset-password`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ email, otp, newPassword }),
+            body: JSON.stringify({ token: resetTokenRecord.token, newPassword }),
           });
 
           const resetBody = await resetResponse.json();
@@ -90,9 +85,10 @@ async function main() {
       });
     });
 
-    console.log(`Verified OTP password reset flow: ${JSON.stringify(payload)}`);
+    console.log(`Verified password reset flow: ${JSON.stringify(payload)}`);
   } finally {
-    await prisma.emailOTP.deleteMany({ where: { email } });
+    await prisma.passwordResetToken.deleteMany({ where: { email } });
+    await prisma.magicLinkToken.deleteMany({ where: { email } });
     await prisma.leaderboard.deleteMany({ where: { user: { email } } });
     await prisma.user.deleteMany({ where: { email } });
     await prisma.$disconnect();
