@@ -80,7 +80,7 @@ export function MarketingNav(): JSX.Element {
             <ButtonLink href="/login" variant="ghost">
               Login
             </ButtonLink>
-            <ButtonLink href="/signup">Sign up</ButtonLink>
+            <ButtonLink href="/login">Get started</ButtonLink>
           </>
         )}
       </div>
