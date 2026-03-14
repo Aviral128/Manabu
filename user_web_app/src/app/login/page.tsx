@@ -25,6 +25,7 @@ export default function LoginPage(): JSX.Element {
   const [passwordBusy, setPasswordBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
+  const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
   React.useEffect(() => {
     if (!isReady) return;
@@ -167,6 +168,7 @@ export default function LoginPage(): JSX.Element {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     type="email"
+                    autoComplete="email"
                     placeholder="name@company.com"
                     required
                     style={{ padding: "14px 16px", fontSize: 16, borderRadius: 18 }}
@@ -176,7 +178,13 @@ export default function LoginPage(): JSX.Element {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <button
                     type="button"
-                    onClick={() => setShowPassword((current) => !current)}
+                    onClick={() =>
+                      setShowPassword((current) => {
+                        setError(null);
+                        setSuccess(null);
+                        return !current;
+                      })
+                    }
                     style={{ background: "none", border: 0, padding: 0, color: "var(--muted)", cursor: "pointer", fontWeight: 700 }}
                   >
                     {showPassword ? "Hide password login" : "Use password instead"}
@@ -194,8 +202,16 @@ export default function LoginPage(): JSX.Element {
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         type="password"
+                        autoComplete="current-password"
                         placeholder="Enter your password"
                         style={{ padding: "12px 14px", borderRadius: 16 }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter") return;
+                          event.preventDefault();
+                          if (!passwordBusy) {
+                            void onPasswordButtonClick();
+                          }
+                        }}
                       />
                     </label>
                     <Button type="button" variant="ghost" disabled={passwordBusy} onClick={onPasswordButtonClick}>
@@ -211,9 +227,23 @@ export default function LoginPage(): JSX.Element {
                   {linkBusy ? <Spinner size={16} /> : <MailCheck size={16} />} Send Login Link
                 </Button>
 
-                <Button type="button" variant="ghost" disabled style={{ opacity: 0.7, padding: "14px 16px", borderRadius: 18 }}>
-                  Continue with Google <ArrowRight size={16} />
-                </Button>
+                {googleAuthEnabled ? (
+                  <Button type="button" variant="ghost" style={{ padding: "14px 16px", borderRadius: 18 }}>
+                    Continue with Google <ArrowRight size={16} />
+                  </Button>
+                ) : (
+                  <div
+                    style={{
+                      padding: "14px 16px",
+                      borderRadius: 18,
+                      border: "1px dashed var(--border)",
+                      color: "var(--muted)",
+                      fontSize: 13,
+                    }}
+                  >
+                    Google sign-in is not enabled on this deployment yet. Use a magic link or password login for now.
+                  </div>
+                )}
 
                 <div style={{ color: "var(--muted)", fontSize: 13 }}>
                   New here? Use your email and we will create your account when you open the link. Prefer a password?{" "}

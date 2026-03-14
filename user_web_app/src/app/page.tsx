@@ -18,6 +18,8 @@ const highlights = [
 export default function LandingPage(): JSX.Element {
   const { state } = useAuth();
   const isAdmin = state.status === "auth" && state.role === "admin";
+  const dashboardHref = state.status === "auth" ? "/app/dashboard" : "/login?next=/app/dashboard";
+  const mvaSpecialHref = state.status === "auth" ? "/app/quiz/mva-special" : "/login?next=/app/quiz/mva-special";
 
   return (
     <main className="container">
@@ -56,8 +58,8 @@ export default function LandingPage(): JSX.Element {
                 </p>
 
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
-                  <ButtonLink href="/signup">Start learning</ButtonLink>
-                  <ButtonLink href="/app/dashboard" variant="ghost">
+                  <ButtonLink href="/login">Start learning</ButtonLink>
+                  <ButtonLink href={dashboardHref} variant="ghost">
                     Open learner app
                   </ButtonLink>
                   {isAdmin ? (
@@ -126,7 +128,7 @@ export default function LandingPage(): JSX.Element {
                 </div>
               ))}
 
-              <ButtonLink href="/app/quiz/mva-special" variant="ghost" style={{ width: "100%" }}>
+              <ButtonLink href={mvaSpecialHref} variant="ghost" style={{ width: "100%" }}>
                 Explore MVA Special
               </ButtonLink>
             </section>

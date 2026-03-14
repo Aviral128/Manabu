@@ -54,17 +54,26 @@ export function Button({
   type = "button",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }): JSX.Element {
+  const disabled = Boolean(props.disabled);
+
   return (
     <button
       type={type}
       suppressHydrationWarning
       {...props}
-      style={getBaseStyle(variant, props.style)}
+      style={{
+        ...getBaseStyle(variant, props.style),
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
+        filter: disabled ? "saturate(0.65)" : undefined,
+      }}
       onMouseDown={(e) => {
+        if (disabled) return;
         (e.currentTarget as HTMLButtonElement).style.transform = "translateY(1px)";
         props.onMouseDown?.(e);
       }}
       onMouseUp={(e) => {
+        if (disabled) return;
         (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0px)";
         props.onMouseUp?.(e);
       }}

@@ -18,7 +18,7 @@ export default function DevHome(): JSX.Element {
     setBusy(true);
     setError(null);
     try {
-      const data = await apiFetch("gateway", "/v1/routes");
+      const data = await apiFetch("backend", "/v1/routes");
       setRoutes(data);
     } catch (e) {
       setError((e as Error).message);
@@ -52,7 +52,7 @@ export default function DevHome(): JSX.Element {
 
       <Card>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <Badge tone="info">Gateway routes</Badge>
+          <Badge tone="info">Backend routes</Badge>
           <Badge tone="neutral">GET /v1/routes</Badge>
         </div>
         <div style={{ marginTop: 12 }}>
@@ -62,4 +62,3 @@ export default function DevHome(): JSX.Element {
     </div>
   );
 }
-

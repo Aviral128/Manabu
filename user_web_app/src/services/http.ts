@@ -13,6 +13,21 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function extractErrorMessage(rawText: string, contentType: string, status: number) {
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    return `Request failed (${status})`;
+  }
+
+  if (contentType.includes("text/html")) {
+    const preMatch = trimmed.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+    const candidate = preMatch?.[1] ?? trimmed.replace(/<[^>]+>/g, " ");
+    return candidate.replace(/\s+/g, " ").trim().slice(0, 240) || `Request failed (${status})`;
+  }
+
+  return trimmed.slice(0, 240);
+}
+
 export async function apiFetch<T>(service: string, path: string, options: ApiFetchOptions = {}): Promise<T> {
   const { body: bodyInit, retries = 1, timeoutMs = 10_000, headers: headersInit, ...rest } = options;
 
@@ -71,7 +86,7 @@ export async function apiFetch<T>(service: string, path: string, options: ApiFet
           const payload = parsedJson && typeof parsedJson === "object" ? (parsedJson as ApiErrorPayload) : null;
           const message =
             payload?.message ??
-            (rawText.trim() ? rawText.trim().slice(0, 240) : `Request failed (${response.status})`);
+            extractErrorMessage(rawText, contentType, response.status);
           const error = new Error(message);
           (error as any).status = response.status;
           (error as any).code = payload?.code;

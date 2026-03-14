@@ -56,8 +56,8 @@ export default function QuizHubPage(): JSX.Element {
                 Choose a practice mode backed by the real MANABU quiz engine.
               </div>
               <div style={{ color: "var(--muted)", marginTop: 10, maxWidth: 720 }}>
-                Question banks, scoring, XP, and attempt history now come from the shared backend API instead of local
-                frontend data.
+                Question banks, scoring, XP, and attempt history now come from the shared backend API. Open any subject,
+                choose exactly how many questions you want, and set your own timer before you start.
               </div>
               <div className="insightGrid" style={{ marginTop: 18 }}>
                 {[
@@ -99,8 +99,8 @@ export default function QuizHubPage(): JSX.Element {
                 {featured?.description ?? "Loading the latest question banks from the shared backend."}
               </div>
               <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {featured ? (
-                  <ButtonLink href={`/app/quiz/${featured.slug}`}>Start {featured.title}</ButtonLink>
+                  {featured ? (
+                  <ButtonLink href={`/app/quiz/${featured.slug}`}>Customize {featured.title}</ButtonLink>
                 ) : (
                   <Button disabled>{loading ? "Loading..." : "Unavailable"}</Button>
                 )}
@@ -138,8 +138,11 @@ export default function QuizHubPage(): JSX.Element {
                   <Badge tone="info">Medium {quiz.difficultyCounts.medium}</Badge>
                   <Badge tone="warning">Hard {quiz.difficultyCounts.hard}</Badge>
                 </div>
+                <div style={{ color: "var(--muted)", marginTop: 10, fontSize: 13 }}>
+                  Build your own session with a custom question count and timer for this subject.
+                </div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                  <ButtonLink href={`/app/quiz/${quiz.slug}`}>Start quiz</ButtonLink>
+                  <ButtonLink href={`/app/quiz/${quiz.slug}`}>Customize and start</ButtonLink>
                   <Badge tone="neutral">{quiz.category ?? "General"}</Badge>
                 </div>
               </Card>

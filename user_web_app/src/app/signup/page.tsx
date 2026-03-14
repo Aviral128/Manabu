@@ -72,11 +72,18 @@ export default function SignupPage(): JSX.Element {
             </label>
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ color: "var(--muted)", fontSize: 12 }}>Email</span>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Enter your email" required />
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="Enter your email" required />
             </label>
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ color: "var(--muted)", fontSize: 12 }}>Password</span>
-              <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Create a strong password" required />
+              <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="new-password"
+                placeholder="Create a strong password"
+                required
+              />
             </label>
 
             {error ? <div style={{ color: "var(--danger)", fontSize: 13 }}>{error}</div> : null}
@@ -87,6 +94,9 @@ export default function SignupPage(): JSX.Element {
 
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
               Already have an account? <Link href="/login" style={{ textDecoration: "underline" }}>Login</Link>
+            </div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>
+              Prefer passwordless? <Link href="/login" style={{ textDecoration: "underline" }}>Send yourself a magic link instead</Link>
             </div>
           </form>
         </Card>

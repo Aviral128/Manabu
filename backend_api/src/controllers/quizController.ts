@@ -24,7 +24,16 @@ const quizSchema = z.object({
 });
 
 const attemptSchema = z.object({
-  answers: z.array(z.number().int().min(-1)),
+  answers: z.array(z.number().int().min(-1)).min(1),
+  questionIds: z.array(z.string().min(1)).min(1).optional(),
+}).superRefine((value, context) => {
+  if (value.questionIds && value.questionIds.length !== value.answers.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["questionIds"],
+      message: "questionIds must match the number of answers.",
+    });
+  }
 });
 
 function routeParam(value: string | string[] | undefined) {
@@ -47,6 +56,7 @@ export async function recordAttempt(request: Request, response: Response) {
       userId: request.user!.userId,
       quizId: routeParam(request.params.id),
       answers: input.answers,
+      questionIds: input.questionIds,
     })
   );
 }

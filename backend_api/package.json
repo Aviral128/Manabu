@@ -14,8 +14,11 @@
     "prisma:push": "prisma db push",
     "prisma:deploy": "npm run prisma:generate && npm run prisma:migrate:deploy",
     "prisma:seed": "prisma db seed",
+    "sync:quiz-bank": "tsx scripts/sync-quiz-bank.ts",
     "verify:db": "node scripts/verify-db.cjs",
     "verify:health": "node scripts/verify-health.cjs",
+    "verify:routes": "node scripts/verify-routes.cjs",
+    "verify:custom-quiz": "node scripts/verify-custom-quiz.cjs",
     "verify:magic-login": "node scripts/verify-magic-login.cjs",
     "verify:signup": "node scripts/verify-signup.cjs",
     "verify:password-reset": "node scripts/verify-password-reset.cjs"

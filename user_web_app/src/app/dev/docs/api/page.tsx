@@ -14,7 +14,7 @@ export default function ApiDocsPage(): JSX.Element {
   React.useEffect(() => {
     (async () => {
       try {
-        const data = await apiFetch("gateway", "/v1/routes");
+        const data = await apiFetch("backend", "/v1/routes");
         setGatewayRoutes(data);
       } catch {
         setGatewayRoutes(null);
@@ -35,8 +35,8 @@ export default function ApiDocsPage(): JSX.Element {
       </MotionIn>
 
       <Card>
-        <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>Gateway route catalog</div>
-        <div style={{ color: "var(--muted)", marginTop: 6 }}>Live from `GET /v1/routes`</div>
+        <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>Backend route catalog</div>
+        <div style={{ color: "var(--muted)", marginTop: 6 }}>Live from `GET /v1/routes` on the Railway backend</div>
         <pre style={{ marginTop: 10, marginBottom: 0, overflowX: "auto" }}>{JSON.stringify(gatewayRoutes, null, 2)}</pre>
       </Card>
 
@@ -59,4 +59,3 @@ export default function ApiDocsPage(): JSX.Element {
     </div>
   );
 }
-

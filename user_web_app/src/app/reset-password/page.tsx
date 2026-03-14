@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 
 import { MarketingNav } from "../../components/layout/MarketingNav";
@@ -12,6 +12,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { requestPasswordReset, resetPassword } from "../../services/auth";
 
 export default function ResetPasswordPage(): JSX.Element {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token")?.trim() ?? "";
   const [email, setEmail] = React.useState("");
@@ -63,7 +64,10 @@ export default function ResetPasswordPage(): JSX.Element {
 
     try {
       const response = await resetPassword({ token, newPassword });
-      setSuccess(response.message || "Password updated. You can log in now.");
+      setSuccess(response.message || "Password updated. Redirecting to login...");
+      window.setTimeout(() => {
+        router.push("/login");
+      }, 1200);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -99,6 +103,7 @@ export default function ResetPasswordPage(): JSX.Element {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     type="email"
+                    autoComplete="email"
                     placeholder="name@company.com"
                     style={{ padding: "14px 16px", borderRadius: 18 }}
                   />
@@ -119,6 +124,7 @@ export default function ResetPasswordPage(): JSX.Element {
                     value={newPassword}
                     onChange={(event) => setNewPassword(event.target.value)}
                     type="password"
+                    autoComplete="new-password"
                     placeholder="Create a strong password"
                     style={{ padding: "14px 16px", borderRadius: 18 }}
                   />
@@ -129,6 +135,7 @@ export default function ResetPasswordPage(): JSX.Element {
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     type="password"
+                    autoComplete="new-password"
                     placeholder="Repeat your new password"
                     style={{ padding: "14px 16px", borderRadius: 18 }}
                   />

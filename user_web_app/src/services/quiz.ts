@@ -43,6 +43,11 @@ export type QuizAttemptResult = {
   }>;
 };
 
+export type QuizAttemptPayload = {
+  answers: number[];
+  questionIds?: string[];
+};
+
 export async function listQuizzes(): Promise<QuizSummary[]> {
   return apiFetch<QuizSummary[]>("backend", "/api/quizzes");
 }
@@ -51,10 +56,10 @@ export async function getQuiz(slug: string): Promise<QuizDetails> {
   return apiFetch<QuizDetails>("backend", `/api/quizzes/${encodeURIComponent(slug)}`);
 }
 
-export async function submitQuizAttempt(quizId: string, answers: number[]): Promise<QuizAttemptResult> {
+export async function submitQuizAttempt(quizId: string, payload: QuizAttemptPayload): Promise<QuizAttemptResult> {
   return apiFetch<QuizAttemptResult>("backend", `/api/quizzes/${encodeURIComponent(quizId)}/attempts`, {
     method: "POST",
-    body: { answers },
+    body: payload,
     retries: 0,
   });
 }

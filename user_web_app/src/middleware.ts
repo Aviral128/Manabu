@@ -16,9 +16,10 @@ export function middleware(request: NextRequest) {
   }
 
   const authenticated = request.cookies.get(AUTH_COOKIES.authenticated)?.value === "1";
+  const accessToken = request.cookies.get(AUTH_COOKIES.accessToken)?.value;
   const role = request.cookies.get(AUTH_COOKIES.role)?.value;
 
-  if (!authenticated) {
+  if (!authenticated || !accessToken) {
     return redirectToLogin(request);
   }
 

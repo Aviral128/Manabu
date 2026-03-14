@@ -2,7 +2,7 @@
 
 import React from "react";
 
-import type { AuthUser, UserRole } from "./shared";
+import { AUTH_COOKIES, type AuthUser, type UserRole } from "./shared";
 import { fetchSession, login as loginApi, logout as logoutApi, register as registerApi } from "../services/auth";
 
 type AuthState =
@@ -20,6 +20,24 @@ type AuthContextValue = {
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
 
+function persistClientAuth(user: AuthUser, accessToken?: string) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(AUTH_COOKIES.user, JSON.stringify(user));
+  if (accessToken) {
+    window.localStorage.setItem(AUTH_COOKIES.accessToken, accessToken);
+  } else {
+    window.localStorage.removeItem(AUTH_COOKIES.accessToken);
+  }
+}
+
+function clearClientAuth() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(AUTH_COOKIES.accessToken);
+  window.localStorage.removeItem(AUTH_COOKIES.user);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [state, setState] = React.useState<AuthState>({ status: "loading" });
 
@@ -32,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
         if (!alive) return;
 
         if (session.authenticated && session.user) {
+          persistClientAuth(session.user);
           setState({
             status: "auth",
             accessToken: undefined,
@@ -46,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
       }
 
       if (alive) {
+        clearClientAuth();
         setState({ status: "anon" });
       }
     })();
@@ -57,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
 
   const login = React.useCallback(async (email: string, password: string) => {
     const res = await loginApi({ email, password });
+    persistClientAuth(res.user, res.token);
     const next: AuthState = {
       status: "auth",
       accessToken: res.token,
@@ -69,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
 
   const signup = React.useCallback(async (email: string, password: string, displayName: string) => {
     const res = await registerApi({ email, password, displayName });
+    persistClientAuth(res.user, res.token);
     setState({
       status: "auth",
       accessToken: res.token,
@@ -80,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
 
   const logout = React.useCallback(async () => {
     await logoutApi().catch(() => undefined);
+    clearClientAuth();
     setState({ status: "anon" });
   }, []);
 

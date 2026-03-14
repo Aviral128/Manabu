@@ -8,6 +8,7 @@ import { useAuth } from "../../auth/AuthProvider";
 export function SiteFooter(): JSX.Element {
   const { state } = useAuth();
   const isAdmin = state.status === "auth" && state.role === "admin";
+  const mvaHref = state.status === "auth" ? "/app/quiz/mva-special" : "/login?next=/app/quiz/mva-special";
 
   return (
     <footer className="container" style={{ paddingTop: 0 }}>
@@ -24,11 +25,11 @@ export function SiteFooter(): JSX.Element {
         }}
       >
         <div style={{ fontWeight: 700 }}>
-          Created with <span aria-hidden="true">&hearts;</span> by Aviral Sultaniya
+          Created with <span aria-hidden="true" style={{ color: "#f43f5e" }}>&hearts;</span> by Aviral Sultaniya
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "var(--muted)", fontSize: 14 }}>
           <Link href="/about-admin">About Admin</Link>
-          <Link href="/app/quiz/mva-special">MVA Special</Link>
+          <Link href={mvaHref}>MVA Special</Link>
           {isAdmin ? <Link href="/dev">Developer Portal</Link> : null}
         </div>
       </div>

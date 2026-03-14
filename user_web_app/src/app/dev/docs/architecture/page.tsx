@@ -4,19 +4,10 @@ import { Badge } from "../../../../components/ui/Badge";
 import { Card } from "../../../../components/ui/Card";
 
 const services = [
-  { name: "API Gateway", port: 7000, desc: "Unified entrypoint, routing, rate limits" },
-  { name: "Auth", port: 7001, desc: "Login, register, tokens" },
-  { name: "User", port: 7002, desc: "Profile, preferences, history" },
-  { name: "Quiz", port: 7003, desc: "Sessions, scoring hooks" },
-  { name: "Learning", port: 7004, desc: "Plans, knowledge graph" },
-  { name: "Gamification", port: 7005, desc: "XP, streaks, rewards" },
-  { name: "Social", port: 7006, desc: "Friends, battles, leaderboard" },
-  { name: "Analytics", port: 7007, desc: "Events, dashboards, retention" },
-  { name: "Content", port: 7008, desc: "CMS + moderation queue" },
-  { name: "Notifications", port: 7009, desc: "Push/email scheduling" },
-  { name: "Sync", port: 7010, desc: "Offline event ingestion" },
-  { name: "Recommendations", port: 7011, desc: "Next best action feed" },
-  { name: "AI Engine", port: 7100, desc: "Weak topics, generation, tutor" },
+  { name: "Next.js web app", location: "Vercel", desc: "App Router frontend, auth pages, dashboard, and same-origin proxy." },
+  { name: "Node.js backend", location: "Railway", desc: "Express + TypeScript + Prisma API for auth, quizzes, admin, and monitoring." },
+  { name: "PostgreSQL", location: "Railway", desc: "Primary relational database used by Prisma." },
+  { name: "Resend", location: "SaaS", desc: "Email delivery for magic login links and password reset links." },
 ];
 
 export default function ArchitectureDoc(): JSX.Element {
@@ -26,8 +17,8 @@ export default function ArchitectureDoc(): JSX.Element {
         <Badge tone="info">Microservices architecture</Badge>
         <h1 style={{ fontFamily: "var(--font-heading)", fontWeight: 900, margin: "12px 0 0" }}>MANABU System Diagram</h1>
         <p style={{ color: "var(--muted)", marginTop: 8 }}>
-          This view is a developer-friendly map of what runs locally. The frontend calls services through a Next.js
-          same-origin proxy to avoid CORS.
+          This is the current deployed MANABU shape, not the older microservice scaffold. The frontend talks to the
+          Railway backend through same-origin Next.js route handlers and proxy endpoints.
         </p>
       </Card>
 
@@ -37,7 +28,7 @@ export default function ArchitectureDoc(): JSX.Element {
             <div key={s.name} style={{ padding: 12, borderRadius: 18, border: "1px solid var(--border)", background: "rgba(255,255,255,0.04)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                 <div style={{ fontWeight: 900 }}>{s.name}</div>
-                <Badge tone="neutral">:{s.port}</Badge>
+                <Badge tone="neutral">{s.location}</Badge>
               </div>
               <div style={{ color: "var(--muted)", marginTop: 6, fontSize: 13 }}>{s.desc}</div>
             </div>
@@ -46,13 +37,13 @@ export default function ArchitectureDoc(): JSX.Element {
       </Card>
 
       <Card>
-        <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>Gateway routing</div>
+        <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>Backend routing</div>
         <p style={{ color: "var(--muted)", marginTop: 6 }}>
-          Gateway exposes public routes (e.g. `/v1/auth/*`) and forwards to upstream services. In the current local
-          scaffold, the gateway publishes a catalog at `GET /v1/routes`.
+          The backend exposes the production API directly through routes like `/api/auth/*`, `/api/quizzes/*`,
+          `/api/admin/*`, and `/api/monitoring/events`. For the developer portal, it also publishes a route catalog at
+          `GET /v1/routes` and a status snapshot at `GET /v1/status`.
         </p>
       </Card>
     </div>
   );
 }
-

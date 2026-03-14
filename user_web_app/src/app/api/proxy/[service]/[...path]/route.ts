@@ -16,6 +16,9 @@ const KNOWN_SERVICES = new Set([
   "recommendations",
   "ai",
   "backend",
+  "admin",
+  "monitoring",
+  "system",
 ]);
 
 function upstreamBase(service: string): string | null {

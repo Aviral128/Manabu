@@ -180,11 +180,39 @@ export async function deleteQuiz(id: string) {
   return { success: true as const };
 }
 
-export async function recordAttempt(input: { userId: string; quizId: string; answers: number[] }) {
+export async function recordAttempt(input: { userId: string; quizId: string; answers: number[]; questionIds?: string[] }) {
   const quiz = await loadQuizById(input.quizId);
   const orderedQuestions = sortQuestions(quiz.questions);
+  const questionIds = input.questionIds?.map((item) => item.trim()).filter(Boolean);
+  const selectedQuestions = questionIds?.length
+    ? (() => {
+        const uniqueQuestionIds = new Set(questionIds);
+        if (uniqueQuestionIds.size !== questionIds.length) {
+          throw new AppError(400, "INVALID_ATTEMPT", "Duplicate question ids are not allowed in a quiz attempt.");
+        }
 
-  const review = orderedQuestions.map((question, index) => {
+        const questionById = new Map(orderedQuestions.map((question) => [question.id, question]));
+        const resolved = questionIds.map((questionId) => {
+          const question = questionById.get(questionId);
+          if (!question) {
+            throw new AppError(400, "INVALID_ATTEMPT", "One or more submitted questions do not belong to this quiz.");
+          }
+          return question;
+        });
+
+        return resolved;
+      })()
+    : orderedQuestions;
+
+  if (!selectedQuestions.length) {
+    throw new AppError(400, "INVALID_ATTEMPT", "A quiz attempt must include at least one question.");
+  }
+
+  if (input.answers.length !== selectedQuestions.length) {
+    throw new AppError(400, "INVALID_ATTEMPT", "The number of answers must match the number of submitted questions.");
+  }
+
+  const review = selectedQuestions.map((question, index) => {
     const selectedIndex = input.answers[index] ?? -1;
     const isCorrect = selectedIndex === question.answerIndex;
     return {
@@ -199,7 +227,7 @@ export async function recordAttempt(input: { userId: string; quizId: string; ans
   });
 
   const correctAnswers = review.filter((item) => item.isCorrect).length;
-  const totalQuestions = orderedQuestions.length;
+  const totalQuestions = selectedQuestions.length;
   const score = totalQuestions ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
   const xpEarned = Math.max(10, correctAnswers * 10);
 

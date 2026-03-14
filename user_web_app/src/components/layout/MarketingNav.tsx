@@ -20,6 +20,8 @@ export function MarketingNav(): JSX.Element {
   const resolved = theme === "system" ? systemTheme : theme;
   const isDark = mounted && resolved === "dark";
   const isAdmin = state.status === "auth" && state.role === "admin";
+  const dashboardHref = state.status === "auth" ? "/app/dashboard" : "/login?next=/app/dashboard";
+  const mvaSpecialHref = state.status === "auth" ? "/app/quiz/mva-special" : "/login?next=/app/quiz/mva-special";
 
   return (
     <header
@@ -56,10 +58,10 @@ export function MarketingNav(): JSX.Element {
       </Link>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <Link href="/app/dashboard" style={{ color: "var(--muted)", fontWeight: 700, fontSize: 14 }}>
+        <Link href={dashboardHref} style={{ color: "var(--muted)", fontWeight: 700, fontSize: 14 }}>
           Product
         </Link>
-        <Link href="/app/quiz/mva-special" style={{ color: "var(--muted)", fontWeight: 700, fontSize: 14 }}>
+        <Link href={mvaSpecialHref} style={{ color: "var(--muted)", fontWeight: 700, fontSize: 14 }}>
           MVA Special
         </Link>
         {isAdmin ? (

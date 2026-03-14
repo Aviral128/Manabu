@@ -7,9 +7,14 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const accessToken = getAccessToken(cookieStore);
   const cachedUser = readSessionUser(cookieStore);
+  const hadAuthenticatedCookie = cookieStore.get("manabu_authenticated")?.value === "1";
 
   if (!accessToken) {
-    return NextResponse.json({ authenticated: false, user: null });
+    const response = NextResponse.json({ authenticated: false, user: null });
+    if (cachedUser || hadAuthenticatedCookie) {
+      clearSessionCookies(response, new URL(request.url).protocol === "https:");
+    }
+    return response;
   }
 
   let upstream: Response;

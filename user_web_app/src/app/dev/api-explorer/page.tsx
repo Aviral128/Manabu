@@ -20,7 +20,13 @@ function expandPath(template: string, params: Record<string, string>) {
 
 export default function ApiExplorerPage(): JSX.Element {
   const [selected, setSelected] = React.useState<ApiEndpoint>(ENDPOINTS[0]);
-  const [params, setParams] = React.useState<Record<string, string>>({ id: "usr_001", userId: "usr_001", courseId: "course_001", sessionId: "quiz_session_mock_001" });
+  const [params, setParams] = React.useState<Record<string, string>>({
+    id: "replace-me",
+    slug: "mva-special",
+    userId: "usr_001",
+    courseId: "course_001",
+    sessionId: "quiz_session_mock_001",
+  });
   const [body, setBody] = React.useState<string>(JSON.stringify({ demo: true }, null, 2));
   const [busy, setBusy] = React.useState(false);
   const [result, setResult] = React.useState<any | null>(null);

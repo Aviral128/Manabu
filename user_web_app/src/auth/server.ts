@@ -116,10 +116,18 @@ export function getAccessToken(cookieStore: CookieReader): string | null {
 }
 
 export function isAuthenticated(cookieStore: CookieReader): boolean {
-  return cookieStore.get(AUTH_COOKIES.authenticated)?.value === "1" && Boolean(readSessionUser(cookieStore));
+  return (
+    cookieStore.get(AUTH_COOKIES.authenticated)?.value === "1" &&
+    Boolean(getAccessToken(cookieStore)) &&
+    Boolean(readSessionUser(cookieStore))
+  );
 }
 
 export function isAdmin(cookieStore: CookieReader): boolean {
+  if (!isAuthenticated(cookieStore)) {
+    return false;
+  }
+
   const role = cookieStore.get(AUTH_COOKIES.role)?.value;
   if (role === "admin") return true;
   return readSessionUser(cookieStore)?.role === "admin";
