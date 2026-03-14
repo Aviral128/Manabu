@@ -1,9 +1,9 @@
-import type { AuthMutationResponse, AuthUser } from "../auth/shared";
+import type { AuthMessageResponse, AuthMutationResponse, AuthUser } from "../auth/shared";
 
 export type LoginPayload = { email: string; password: string };
 export type RegisterPayload = { email: string; password: string; displayName: string };
 export type SessionResponse = { authenticated: boolean; user: AuthUser | null; role?: AuthUser["role"] };
-export type MessageResponse = { success: true; message: string };
+export type MessageResponse = AuthMessageResponse;
 export type ResetPasswordPayload = { token: string; newPassword: string };
 
 async function requestAuth<T>(url: string, init?: RequestInit): Promise<T> {
@@ -43,8 +43,8 @@ export async function login(payload: LoginPayload): Promise<AuthMutationResponse
   });
 }
 
-export async function register(payload: RegisterPayload): Promise<AuthMutationResponse> {
-  return requestAuth<AuthMutationResponse>("/api/auth/signup", {
+export async function register(payload: RegisterPayload): Promise<MessageResponse> {
+  return requestAuth<MessageResponse>("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -59,6 +59,12 @@ export async function requestMagicLink(email: string): Promise<MessageResponse> 
 
 export async function verifyMagicLink(token: string): Promise<AuthMutationResponse> {
   return requestAuth<AuthMutationResponse>(`/api/auth/verify-magic?token=${encodeURIComponent(token)}`, {
+    method: "GET",
+  });
+}
+
+export async function verifyEmail(token: string): Promise<MessageResponse> {
+  return requestAuth<MessageResponse>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
     method: "GET",
   });
 }

@@ -6,14 +6,17 @@ import React from "react";
 import { MarketingNav } from "../../../components/layout/MarketingNav";
 import { Card } from "../../../components/ui/Card";
 import { Spinner } from "../../../components/ui/Spinner";
-import { verifyMagicLink } from "../../../services/auth";
+import { verifyEmail, verifyMagicLink } from "../../../services/auth";
 
 export default function VerifyMagicPage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
+  const mode = searchParams.get("mode") === "verify-email" ? "verify-email" : "magic-login";
   const [status, setStatus] = React.useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = React.useState("Verifying your magic link...");
+  const [message, setMessage] = React.useState(
+    mode === "verify-email" ? "Verifying your email..." : "Verifying your magic link..."
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -22,11 +25,23 @@ export default function VerifyMagicPage(): JSX.Element {
       if (!token) {
         if (!active) return;
         setStatus("error");
-        setMessage("This login link is missing or invalid.");
+        setMessage(mode === "verify-email" ? "This verification link is missing or invalid." : "This login link is missing or invalid.");
         return;
       }
 
       try {
+        if (!active) return;
+        if (mode === "verify-email") {
+          const result = await verifyEmail(token);
+          if (!active) return;
+          setStatus("success");
+          setMessage(result.message || "Email verified successfully. Redirecting to login...");
+          window.setTimeout(() => {
+            router.replace("/login?verified=1");
+          }, 900);
+          return;
+        }
+
         const result = await verifyMagicLink(token);
         if (!active) return;
 
@@ -47,7 +62,7 @@ export default function VerifyMagicPage(): JSX.Element {
     return () => {
       active = false;
     };
-  }, [router, token]);
+  }, [mode, router, token]);
 
   return (
     <main className="container">
@@ -70,7 +85,9 @@ export default function VerifyMagicPage(): JSX.Element {
               </div>
             </div>
             <div>
-              <h1 style={{ fontFamily: "var(--font-heading)", margin: 0 }}>Verifying your login</h1>
+              <h1 style={{ fontFamily: "var(--font-heading)", margin: 0 }}>
+                {mode === "verify-email" ? "Verifying your email" : "Verifying your login"}
+              </h1>
               <p style={{ color: status === "error" ? "var(--danger)" : "var(--muted)", marginTop: 10 }}>{message}</p>
             </div>
           </div>

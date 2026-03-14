@@ -1,6 +1,6 @@
 const path = require("node:path");
 const dotenv = require("dotenv");
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Role, UserStatus } = require("@prisma/client");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
@@ -11,6 +11,17 @@ async function main() {
   const app = createApp();
 
   try {
+    await prisma.user.create({
+      data: {
+        name: "Magic Login Smoke",
+        email,
+        passwordHash: null,
+        role: Role.LEARNER,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+      },
+    });
+
     const payload = await new Promise((resolve, reject) => {
       const server = app.listen(0, "127.0.0.1", async () => {
         const address = server.address();
@@ -49,6 +60,14 @@ async function main() {
             throw new Error(`Magic login verification failed with status ${verifyResponse.status}: ${JSON.stringify(verifyBody)}`);
           }
 
+          const consumedToken = await prisma.magicLinkToken.findUnique({
+            where: { token: tokenRecord.token },
+          });
+
+          if (consumedToken) {
+            throw new Error("Magic login token was not deleted after successful use.");
+          }
+
           resolve({
             request: { status: magicResponse.status, body: magicBody },
             verify: { status: verifyResponse.status, body: verifyBody },
@@ -63,9 +82,13 @@ async function main() {
 
     console.log(`Verified magic login flow: ${JSON.stringify(payload)}`);
   } finally {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      await prisma.emailVerificationToken.deleteMany({ where: { userId: existingUser.id } });
+      await prisma.leaderboard.deleteMany({ where: { userId: existingUser.id } });
+    }
     await prisma.magicLinkToken.deleteMany({ where: { email } });
     await prisma.passwordResetToken.deleteMany({ where: { email } });
-    await prisma.leaderboard.deleteMany({ where: { user: { email } } });
     await prisma.user.deleteMany({ where: { email } });
     await prisma.$disconnect();
   }

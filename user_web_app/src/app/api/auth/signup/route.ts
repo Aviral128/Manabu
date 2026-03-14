@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { buildSessionUser, getBackendApiBaseUrl, setSessionCookies } from "../../../../auth/server";
-import type { AuthMutationResponse, AuthUser } from "../../../../auth/shared";
+import { getBackendApiBaseUrl } from "../../../../auth/server";
+import type { AuthMessageResponse } from "../../../../auth/shared";
 
 type SignupBody = {
   email?: string;
@@ -9,11 +9,7 @@ type SignupBody = {
   displayName?: string;
 };
 
-type BackendAuthResponse = {
-  success: true;
-  token: string;
-  user: AuthUser;
-};
+type BackendSignupResponse = AuthMessageResponse;
 
 function safeParse(raw: string) {
   try {
@@ -56,24 +52,19 @@ export async function POST(request: Request) {
   }
 
   const raw = await upstream.text();
-  const payload = safeParse(raw) as Partial<BackendAuthResponse> & { code?: string; message?: string };
+  const payload = safeParse(raw) as Partial<BackendSignupResponse> & { code?: string; message?: string };
 
-  if (!upstream.ok || !payload.user || !payload.token) {
+  if (!upstream.ok || payload.success !== true || typeof payload.message !== "string") {
     return NextResponse.json(
       { code: payload.code ?? "AUTH_SIGNUP_FAILED", message: payload.message ?? "Signup failed." },
       { status: upstream.status || 500 }
     );
   }
 
-  const user = buildSessionUser(payload.user);
-  const secure = new URL(request.url).protocol === "https:";
-
   const response = NextResponse.json({
     success: true,
-    user,
-    token: payload.token,
-  } satisfies AuthMutationResponse);
-
-  setSessionCookies(response, user, payload.token, undefined, 60 * 60 * 24, secure);
+    message: payload.message,
+    requiresVerification: payload.requiresVerification ?? true,
+  } satisfies AuthMessageResponse);
   return response;
 }

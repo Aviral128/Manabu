@@ -87,9 +87,13 @@ async function main() {
 
     console.log(`Verified password reset flow: ${JSON.stringify(payload)}`);
   } finally {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      await prisma.emailVerificationToken.deleteMany({ where: { userId: existingUser.id } });
+      await prisma.leaderboard.deleteMany({ where: { userId: existingUser.id } });
+    }
     await prisma.passwordResetToken.deleteMany({ where: { email } });
     await prisma.magicLinkToken.deleteMany({ where: { email } });
-    await prisma.leaderboard.deleteMany({ where: { user: { email } } });
     await prisma.user.deleteMany({ where: { email } });
     await prisma.$disconnect();
   }

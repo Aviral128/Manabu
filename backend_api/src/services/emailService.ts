@@ -47,6 +47,21 @@ export async function sendMagicLoginEmail(email: string, link: string) {
   });
 }
 
+export async function sendEmailVerificationEmail(email: string, link: string) {
+  await sendEmail({
+    email,
+    subject: "Verify your MANABU account",
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
+        <h2>Verify your MANABU account</h2>
+        <p>Confirm your email address to activate your account and unlock login.</p>
+        <p><a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#22c55e;color:#042012;text-decoration:none;font-weight:700;">Verify email</a></p>
+        <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, link: string) {
   await sendEmail({
     email,

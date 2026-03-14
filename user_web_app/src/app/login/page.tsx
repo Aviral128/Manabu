@@ -34,6 +34,13 @@ export default function LoginPage(): JSX.Element {
     }
   }, [isReady, router, searchParams, state]);
 
+  React.useEffect(() => {
+    if (searchParams.get("verified") === "1") {
+      setSuccess("Email verified. You can log in now.");
+      setError(null);
+    }
+  }, [searchParams]);
+
   async function onMagicLinkSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!email.includes("@")) {
@@ -246,7 +253,7 @@ export default function LoginPage(): JSX.Element {
                 )}
 
                 <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                  New here? Use your email and we will create your account when you open the link. Prefer a password?{" "}
+                  New here? Create an account first, verify your email, and then use magic link or password login.{" "}
                   <Link href="/signup" style={{ textDecoration: "underline", fontWeight: 700 }}>
                     Create an account
                   </Link>

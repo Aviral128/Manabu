@@ -26,21 +26,35 @@ enum Difficulty {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  email        String        @unique
-  name         String
-  passwordHash String?       @map("password_hash")
-  role         Role          @default(LEARNER)
-  status       UserStatus    @default(ACTIVE)
-  isEmailVerified Boolean    @default(false) @map("is_email_verified")
-  avatarUrl    String?       @map("avatar_url")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  attempts     QuizAttempt[]
-  leaderboard  Leaderboard?
-  adminLogs    AdminLog[]    @relation("AdminActor")
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  name                    String
+  passwordHash            String?                  @map("password_hash")
+  role                    Role                     @default(LEARNER)
+  status                  UserStatus               @default(ACTIVE)
+  isEmailVerified         Boolean                  @default(false) @map("is_email_verified")
+  avatarUrl               String?                  @map("avatar_url")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  attempts                QuizAttempt[]
+  leaderboard             Leaderboard?
+  adminLogs               AdminLog[]               @relation("AdminActor")
+  emailVerificationTokens EmailVerificationToken[]
 
   @@map("users")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 model MagicLinkToken {

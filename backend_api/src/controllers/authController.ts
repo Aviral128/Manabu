@@ -57,6 +57,12 @@ export async function magicLogin(request: Request, response: Response) {
   return response.json(result);
 }
 
+export async function verifyEmail(request: Request, response: Response) {
+  const token = String(request.query.token ?? "").trim();
+  const result = await authService.verifyEmail(token);
+  return response.json(result);
+}
+
 export async function verifyMagic(request: Request, response: Response) {
   const token = String(request.query.token ?? "").trim();
   const result = await authService.verifyMagicLogin(token);

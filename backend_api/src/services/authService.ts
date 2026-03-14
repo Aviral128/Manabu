@@ -13,14 +13,15 @@ import {
   demoSignup,
   demoUpdateProfile,
   demoUpdateUser,
+  demoVerifyEmail,
   demoVerifyMagicLogin,
   shouldUseAuthDemoStore,
 } from "../lib/authDemoStore";
 import { prisma } from "../lib/prisma";
-import { sendMagicLoginEmail, sendPasswordResetEmail } from "./emailService";
 import { AppError } from "../utils/appError";
 import { signToken } from "../utils/jwt";
 import { generateMagicToken } from "../utils/magicToken";
+import { sendEmailVerificationEmail, sendMagicLoginEmail, sendPasswordResetEmail } from "./emailService";
 
 type DatabaseClient = typeof prisma | Prisma.TransactionClient;
 
@@ -81,14 +82,24 @@ function ensureAccountNotSuspended(status: UserStatus) {
   }
 }
 
+function ensureAccountVerified(user: Pick<UserRecord, "status" | "isEmailVerified">) {
+  if (user.status === UserStatus.PENDING || !user.isEmailVerified) {
+    throw new AppError(403, "EMAIL_NOT_VERIFIED", "Verify your email before logging in.");
+  }
+}
+
 function ensurePasswordLoginAvailable(passwordHash: string | null): asserts passwordHash is string {
   if (!passwordHash) {
     throw new AppError(400, "PASSWORD_LOGIN_UNAVAILABLE", "Use a magic link or reset your password to set a password.");
   }
 }
 
+function buildEmailVerificationLink(token: string) {
+  return `${env.webBaseUrl}/auth/verify?token=${encodeURIComponent(token)}&mode=verify-email`;
+}
+
 function buildMagicLoginLink(token: string) {
-  return `${env.webBaseUrl}/auth/verify?token=${encodeURIComponent(token)}`;
+  return `${env.webBaseUrl}/auth/verify?token=${encodeURIComponent(token)}&mode=magic-login`;
 }
 
 function buildPasswordResetLink(token: string) {
@@ -111,6 +122,24 @@ async function ensureLeaderboard(client: DatabaseClient, userId: string) {
       streak: 0,
     },
   });
+}
+
+async function issueEmailVerificationToken(client: DatabaseClient, userId: string) {
+  const token = generateMagicToken();
+
+  await client.emailVerificationToken.deleteMany({
+    where: { userId },
+  });
+
+  await client.emailVerificationToken.create({
+    data: {
+      userId,
+      token,
+      expiresAt: getTokenExpiryDate(),
+    },
+  });
+
+  return token;
 }
 
 async function issueMagicLinkToken(client: DatabaseClient, email: string) {
@@ -147,6 +176,25 @@ async function issuePasswordResetToken(client: DatabaseClient, email: string) {
   });
 
   return token;
+}
+
+async function consumeEmailVerificationToken(client: DatabaseClient, token: string) {
+  const record = await client.emailVerificationToken.findUnique({
+    where: { token },
+  });
+
+  if (!record || record.expiresAt.getTime() <= Date.now()) {
+    if (record) {
+      await client.emailVerificationToken.delete({ where: { id: record.id } });
+    }
+    throw new AppError(400, "INVALID_VERIFICATION_LINK", "This verification link is invalid or has expired.");
+  }
+
+  await client.emailVerificationToken.delete({
+    where: { id: record.id },
+  });
+
+  return record.userId;
 }
 
 async function consumeMagicLinkToken(client: DatabaseClient, token: string) {
@@ -187,43 +235,6 @@ async function consumePasswordResetToken(client: DatabaseClient, token: string) 
   return record.email;
 }
 
-async function activateOrCreateUser(client: DatabaseClient, email: string) {
-  const existing = await client.user.findUnique({ where: { email } });
-
-  if (existing) {
-    ensureAccountNotSuspended(existing.status);
-
-    const user =
-      existing.status !== UserStatus.ACTIVE || !existing.isEmailVerified
-        ? await client.user.update({
-            where: { id: existing.id },
-            data: {
-              status: UserStatus.ACTIVE,
-              isEmailVerified: true,
-              name: existing.name || deriveDisplayName(email),
-            },
-          })
-        : existing;
-
-    await ensureLeaderboard(client, user.id);
-    return user;
-  }
-
-  const user = await client.user.create({
-    data: {
-      email,
-      name: deriveDisplayName(email),
-      passwordHash: null,
-      role: toRole(email),
-      status: UserStatus.ACTIVE,
-      isEmailVerified: true,
-    },
-  });
-
-  await ensureLeaderboard(client, user.id);
-  return user;
-}
-
 async function sendResetEmailBestEffort(email: string, link: string) {
   try {
     await sendPasswordResetEmail(email, link);
@@ -236,56 +247,101 @@ export async function signup(input: { name: string; email: string; password: str
   const email = normalizeEmail(input.email);
   const passwordHash = await bcrypt.hash(input.password, 10);
   const role = toRole(email);
+  const response = {
+    success: true as const,
+    requiresVerification: true as const,
+    message: "Check your email to verify your account.",
+  };
 
   try {
-    const user = await prisma.$transaction(async (tx) => {
-      const existing = await tx.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email } });
+    let userId = "";
 
-      if (existing) {
-        ensureAccountNotSuspended(existing.status);
+    if (existing) {
+      ensureAccountNotSuspended(existing.status);
 
-        if (existing.passwordHash) {
-          throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
-        }
-
-        const updated = await tx.user.update({
-          where: { id: existing.id },
-          data: {
-            name: input.name.trim(),
-            passwordHash,
-            role,
-            status: UserStatus.ACTIVE,
-            isEmailVerified: true,
-          },
-        });
-
-        await ensureLeaderboard(tx, updated.id);
-        return updated;
+      if (existing.isEmailVerified) {
+        throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
       }
 
-      const created = await tx.user.create({
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name: input.name.trim(),
+          passwordHash,
+          role,
+          status: UserStatus.PENDING,
+          isEmailVerified: false,
+        },
+      });
+
+      userId = updated.id;
+    } else {
+      const created = await prisma.user.create({
         data: {
           name: input.name.trim(),
           email,
           passwordHash,
           role,
-          status: UserStatus.ACTIVE,
-          isEmailVerified: true,
+          status: UserStatus.PENDING,
+          isEmailVerified: false,
         },
       });
 
-      await ensureLeaderboard(tx, created.id);
-      return created;
-    });
+      userId = created.id;
+    }
 
-    const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
-    return { success: true as const, user: buildUserPayload(user), token };
+    await ensureLeaderboard(prisma, userId);
+    const verificationToken = await issueEmailVerificationToken(prisma, userId);
+
+    await sendEmailVerificationEmail(email, buildEmailVerificationLink(verificationToken));
+    return response;
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
-    const user = await demoSignup(input, role);
-    const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
-    return { success: true as const, user: buildUserPayload(user), token };
+    const result = await demoSignup(input, role);
+    await sendEmailVerificationEmail(email, buildEmailVerificationLink(result.verificationToken));
+    return response;
+  }
+}
+
+export async function verifyEmail(token: string) {
+  const rawToken = token.trim();
+  if (!rawToken) {
+    throw new AppError(400, "INVALID_VERIFICATION_LINK", "This verification link is invalid or has expired.");
+  }
+
+  try {
+    const userId = await consumeEmailVerificationToken(prisma, rawToken);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new AppError(400, "INVALID_VERIFICATION_LINK", "This verification link is invalid or has expired.");
+    }
+
+    ensureAccountNotSuspended(user.status);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+        name: user.name || deriveDisplayName(user.email),
+      },
+    });
+
+    await prisma.emailVerificationToken.deleteMany({
+      where: { userId: user.id },
+    });
+
+    await ensureLeaderboard(prisma, user.id);
+
+    return { success: true as const, message: "Email verified successfully. Please log in." };
+  } catch (error) {
+    if (!shouldUseAuthDemoStore(error)) throw error;
+
+    await demoVerifyEmail(rawToken);
+    return { success: true as const, message: "Email verified successfully. Please log in." };
   }
 }
 
@@ -297,14 +353,21 @@ export async function requestMagicLogin(input: { email: string }) {
   };
 
   try {
-    const token = await prisma.$transaction(async (tx) => issueMagicLinkToken(tx, email));
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || user.status === UserStatus.SUSPENDED || user.status !== UserStatus.ACTIVE || !user.isEmailVerified) {
+      return response;
+    }
+
+    const token = await issueMagicLinkToken(prisma, email);
     await sendMagicLoginEmail(email, buildMagicLoginLink(token));
     return response;
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
     const token = await demoRequestMagicLogin(email);
-    await sendMagicLoginEmail(email, buildMagicLoginLink(token));
+    if (token) {
+      await sendMagicLoginEmail(email, buildMagicLoginLink(token));
+    }
     return response;
   }
 }
@@ -316,10 +379,16 @@ export async function verifyMagicLogin(token: string) {
   }
 
   try {
-    const user = await prisma.$transaction(async (tx) => {
-      const email = await consumeMagicLinkToken(tx, rawToken);
-      return activateOrCreateUser(tx, email);
-    });
+    const email = await consumeMagicLinkToken(prisma, rawToken);
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      throw new AppError(400, "INVALID_MAGIC_LINK", "This login link is invalid or has expired.");
+    }
+
+    ensureAccountNotSuspended(user.status);
+    ensureAccountVerified(user);
+    await ensureLeaderboard(prisma, user.id);
 
     const jwt = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
     return { success: true as const, token: jwt, user: buildUserPayload(user) };
@@ -336,27 +405,18 @@ export async function login(input: { email: string; password: string }) {
   const email = normalizeEmail(input.email);
 
   try {
-    let user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new AppError(404, "ACCOUNT_NOT_FOUND", "No account was found for this email.");
     }
 
     ensureAccountNotSuspended(user.status);
+    ensureAccountVerified(user);
     ensurePasswordLoginAvailable(user.passwordHash);
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid) {
       throw new AppError(401, "INVALID_PASSWORD", "Incorrect password.");
-    }
-
-    if (user.status !== UserStatus.ACTIVE || !user.isEmailVerified) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          status: UserStatus.ACTIVE,
-          isEmailVerified: true,
-        },
-      });
     }
 
     const token = signToken({ userId: user.id, email: user.email, role: roleLabel(user.role) });
@@ -370,6 +430,7 @@ export async function login(input: { email: string; password: string }) {
     }
 
     ensureAccountNotSuspended(user.status);
+    ensureAccountVerified(user);
     ensurePasswordLoginAvailable(user.passwordHash);
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
@@ -395,7 +456,7 @@ export async function forgotPassword(input: { email: string }) {
       return response;
     }
 
-    const token = await prisma.$transaction(async (tx) => issuePasswordResetToken(tx, email));
+    const token = await issuePasswordResetToken(prisma, email);
     await sendResetEmailBestEffort(email, buildPasswordResetLink(token));
     return response;
   } catch (error) {
@@ -418,26 +479,22 @@ export async function resetPassword(input: { token: string; newPassword: string 
   const passwordHash = await bcrypt.hash(input.newPassword, 10);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const email = await consumePasswordResetToken(tx, rawToken);
-      const user = await tx.user.findUnique({ where: { email } });
-      if (!user) {
-        throw new AppError(400, "INVALID_RESET_LINK", "This password reset link is invalid or has expired.");
-      }
+    const email = await consumePasswordResetToken(prisma, rawToken);
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new AppError(400, "INVALID_RESET_LINK", "This password reset link is invalid or has expired.");
+    }
 
-      ensureAccountNotSuspended(user.status);
+    ensureAccountNotSuspended(user.status);
 
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          passwordHash,
-          status: UserStatus.ACTIVE,
-          isEmailVerified: true,
-        },
-      });
-
-      await ensureLeaderboard(tx, user.id);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+      },
     });
+
+    await ensureLeaderboard(prisma, user.id);
 
     return { success: true as const, message: "Password reset successfully." };
   } catch (error) {

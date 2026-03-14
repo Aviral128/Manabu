@@ -50,7 +50,7 @@ const envSchema = z.object({
   if (value.NODE_ENV === "production" && !value.RESEND_API_KEY) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "RESEND_API_KEY is required in production for magic-link and password reset email delivery.",
+      message: "RESEND_API_KEY is required in production for verification, magic-link, and password reset email delivery.",
       path: ["RESEND_API_KEY"],
     });
   }

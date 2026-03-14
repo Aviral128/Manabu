@@ -43,6 +43,7 @@ const tokenVerifyLimiter = rateLimit({
 router.post("/signup", authRequestLimiter, asyncHandler(authController.signup));
 router.post("/login", authRequestLimiter, asyncHandler(authController.login));
 router.post("/magic-login", authRequestLimiter, asyncHandler(authController.magicLogin));
+router.get("/verify-email", tokenVerifyLimiter, asyncHandler(authController.verifyEmail));
 router.get("/verify-magic", tokenVerifyLimiter, asyncHandler(authController.verifyMagic));
 router.post("/forgot-password", authRequestLimiter, asyncHandler(authController.forgotPassword));
 router.post("/reset-password", authRequestLimiter, asyncHandler(authController.resetPassword));

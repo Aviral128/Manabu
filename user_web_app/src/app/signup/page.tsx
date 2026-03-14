@@ -21,6 +21,7 @@ export default function SignupPage(): JSX.Element {
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!isReady) return;
@@ -45,9 +46,11 @@ export default function SignupPage(): JSX.Element {
     }
     setBusy(true);
     setError(null);
+    setSuccess(null);
     try {
-      await signup(email, password, displayName);
-      router.push(normalizeNextTarget(searchParams.get("next"), "/app/dashboard"));
+      const result = await signup(email, password, displayName);
+      setSuccess(result.message || "Check your email to verify your account.");
+      setPassword("");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -62,7 +65,7 @@ export default function SignupPage(): JSX.Element {
         <Card style={{ width: "min(560px, 100%)", borderRadius: 28 }}>
           <h1 style={{ fontFamily: "var(--font-heading)", fontWeight: 900, margin: 0 }}>Create your account</h1>
           <p style={{ color: "var(--muted)", marginTop: 8 }}>
-            Start with a baseline, then let MANABU adapt your plan.
+            Create your account, then verify your email to unlock password and magic-link login.
           </p>
           {!isReady ? <div style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>Checking your saved session...</div> : null}
           <form onSubmit={onSubmit} style={{ marginTop: 14, display: "grid", gap: 10 }}>
@@ -87,6 +90,7 @@ export default function SignupPage(): JSX.Element {
             </label>
 
             {error ? <div style={{ color: "var(--danger)", fontSize: 13 }}>{error}</div> : null}
+            {success ? <div style={{ color: "var(--primary)", fontSize: 13, fontWeight: 700 }}>{success}</div> : null}
 
             <Button type="submit" variant="primary" disabled={busy}>
               {busy ? <Spinner size={16} /> : null} Sign up
@@ -95,9 +99,17 @@ export default function SignupPage(): JSX.Element {
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
               Already have an account? <Link href="/login" style={{ textDecoration: "underline" }}>Login</Link>
             </div>
+<<<<<<< HEAD
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
               Prefer passwordless? <Link href="/login" style={{ textDecoration: "underline" }}>Send yourself a magic link instead</Link>
             </div>
+=======
+            {success ? (
+              <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                Check your inbox, click the verification link, then return to <Link href="/login" style={{ textDecoration: "underline" }}>login</Link>.
+              </div>
+            ) : null}
+>>>>>>> 2190baf (require email verification for signup)
           </form>
         </Card>
       </div>

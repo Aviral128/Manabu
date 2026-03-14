@@ -17,6 +17,12 @@ export type AuthMutationResponse = {
   expiresInSeconds?: number;
 };
 
+export type AuthMessageResponse = {
+  success: true;
+  message: string;
+  requiresVerification?: boolean;
+};
+
 export const AUTH_COOKIES = {
   accessToken: "manabu_access_token",
   refreshToken: "manabu_refresh_token",

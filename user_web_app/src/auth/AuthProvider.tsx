@@ -2,7 +2,11 @@
 
 import React from "react";
 
+<<<<<<< HEAD
 import { AUTH_COOKIES, type AuthUser, type UserRole } from "./shared";
+=======
+import type { AuthMessageResponse, AuthUser, UserRole } from "./shared";
+>>>>>>> 2190baf (require email verification for signup)
 import { fetchSession, login as loginApi, logout as logoutApi, register as registerApi } from "../services/auth";
 
 type AuthState =
@@ -14,7 +18,7 @@ type AuthContextValue = {
   state: AuthState;
   isReady: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, displayName: string) => Promise<void>;
+  signup: (email: string, password: string, displayName: string) => Promise<AuthMessageResponse>;
   logout: () => Promise<void>;
 };
 
@@ -89,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
   }, []);
 
   const signup = React.useCallback(async (email: string, password: string, displayName: string) => {
+<<<<<<< HEAD
     const res = await registerApi({ email, password, displayName });
     persistClientAuth(res.user, res.token);
     setState({
@@ -98,6 +103,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
       role: res.user.role,
       user: res.user,
     });
+=======
+    return registerApi({ email, password, displayName });
+>>>>>>> 2190baf (require email verification for signup)
   }, []);
 
   const logout = React.useCallback(async () => {

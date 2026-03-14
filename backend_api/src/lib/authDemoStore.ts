@@ -30,9 +30,17 @@ type DemoLeaderboard = {
   updatedAt: string;
 };
 
-type DemoTokenRecord = {
+type DemoEmailTokenRecord = {
   id: string;
   email: string;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+type DemoUserTokenRecord = {
+  id: string;
+  userId: string;
   token: string;
   expiresAt: string;
   createdAt: string;
@@ -41,8 +49,9 @@ type DemoTokenRecord = {
 type AuthDemoStore = {
   users: DemoUser[];
   leaderboards: DemoLeaderboard[];
-  magicLinkTokens: DemoTokenRecord[];
-  passwordResetTokens: DemoTokenRecord[];
+  magicLinkTokens: DemoEmailTokenRecord[];
+  passwordResetTokens: DemoEmailTokenRecord[];
+  emailVerificationTokens: DemoUserTokenRecord[];
 };
 
 const storePath = path.resolve(process.cwd(), ".local", "auth-demo-store.json");
@@ -110,6 +119,7 @@ async function seedStore(): Promise<AuthDemoStore> {
     ],
     magicLinkTokens: [],
     passwordResetTokens: [],
+    emailVerificationTokens: [],
   };
 }
 
@@ -117,10 +127,13 @@ function upgradeStore(store: AuthDemoStore | Record<string, unknown>) {
   const users = Array.isArray(store.users) ? store.users : [];
   const leaderboards = Array.isArray(store.leaderboards) ? store.leaderboards : [];
   const magicLinkTokens = Array.isArray((store as { magicLinkTokens?: unknown[] }).magicLinkTokens)
-    ? ((store as { magicLinkTokens?: unknown[] }).magicLinkTokens as DemoTokenRecord[])
+    ? ((store as { magicLinkTokens?: unknown[] }).magicLinkTokens as DemoEmailTokenRecord[])
     : [];
   const passwordResetTokens = Array.isArray((store as { passwordResetTokens?: unknown[] }).passwordResetTokens)
-    ? ((store as { passwordResetTokens?: unknown[] }).passwordResetTokens as DemoTokenRecord[])
+    ? ((store as { passwordResetTokens?: unknown[] }).passwordResetTokens as DemoEmailTokenRecord[])
+    : [];
+  const emailVerificationTokens = Array.isArray((store as { emailVerificationTokens?: unknown[] }).emailVerificationTokens)
+    ? ((store as { emailVerificationTokens?: unknown[] }).emailVerificationTokens as DemoUserTokenRecord[])
     : [];
 
   return {
@@ -139,6 +152,7 @@ function upgradeStore(store: AuthDemoStore | Record<string, unknown>) {
     leaderboards: leaderboards as DemoLeaderboard[],
     magicLinkTokens,
     passwordResetTokens,
+    emailVerificationTokens,
   } satisfies AuthDemoStore;
 }
 
@@ -176,7 +190,13 @@ function ensureAccountNotSuspended(status: UserStatus) {
   }
 }
 
-function addTokenRecord(records: DemoTokenRecord[], email: string) {
+function ensureAccountVerified(user: Pick<DemoUser, "status" | "isEmailVerified">) {
+  if (user.status === UserStatus.PENDING || !user.isEmailVerified) {
+    throw new AppError(403, "EMAIL_NOT_VERIFIED", "Verify your email before logging in.");
+  }
+}
+
+function addEmailTokenRecord(records: DemoEmailTokenRecord[], email: string) {
   const token = generateMagicToken();
   const next = records.filter((record) => record.email !== email);
   next.push({
@@ -190,7 +210,21 @@ function addTokenRecord(records: DemoTokenRecord[], email: string) {
   return token;
 }
 
-function consumeToken(records: DemoTokenRecord[], token: string, invalidCode: string, invalidMessage: string) {
+function addUserTokenRecord(records: DemoUserTokenRecord[], userId: string) {
+  const token = generateMagicToken();
+  const next = records.filter((record) => record.userId !== userId);
+  next.push({
+    id: makeId("tok"),
+    userId,
+    token,
+    expiresAt: getTokenExpiryIso(),
+    createdAt: nowIso(),
+  });
+  records.splice(0, records.length, ...next);
+  return token;
+}
+
+function consumeEmailToken(records: DemoEmailTokenRecord[], token: string, invalidCode: string, invalidMessage: string) {
   const record = records.find((item) => item.token === token);
   if (!record || new Date(record.expiresAt).getTime() <= Date.now()) {
     if (record) {
@@ -203,6 +237,21 @@ function consumeToken(records: DemoTokenRecord[], token: string, invalidCode: st
   const index = records.findIndex((item) => item.id === record.id);
   if (index >= 0) records.splice(index, 1);
   return record.email;
+}
+
+function consumeUserToken(records: DemoUserTokenRecord[], token: string, invalidCode: string, invalidMessage: string) {
+  const record = records.find((item) => item.token === token);
+  if (!record || new Date(record.expiresAt).getTime() <= Date.now()) {
+    if (record) {
+      const index = records.findIndex((item) => item.id === record.id);
+      if (index >= 0) records.splice(index, 1);
+    }
+    throw new AppError(400, invalidCode, invalidMessage);
+  }
+
+  const index = records.findIndex((item) => item.id === record.id);
+  if (index >= 0) records.splice(index, 1);
+  return record.userId;
 }
 
 export function shouldUseAuthDemoStore(error: unknown): boolean {
@@ -218,7 +267,7 @@ export async function demoSignup(input: { name: string; email: string; password:
   const email = normalizeEmail(input.email);
   const passwordHash = await bcrypt.hash(input.password, 10);
 
-  let createdUser: DemoUser | null = null;
+  let verificationToken = "";
 
   await updateStore((store) => {
     const existing = store.users.find((user) => user.email === email);
@@ -226,18 +275,19 @@ export async function demoSignup(input: { name: string; email: string; password:
     if (existing) {
       ensureAccountNotSuspended(existing.status);
 
-      if (existing.passwordHash) {
+      if (existing.isEmailVerified) {
         throw new AppError(409, "EMAIL_EXISTS", "An account with this email already exists.");
       }
 
       existing.name = input.name.trim();
       existing.passwordHash = passwordHash;
       existing.role = role;
-      existing.status = UserStatus.ACTIVE;
-      existing.isEmailVerified = true;
+      existing.status = UserStatus.PENDING;
+      existing.isEmailVerified = false;
       existing.updatedAt = nowIso();
       ensureLeaderboard(store, existing.id);
-      createdUser = existing;
+      verificationToken = addUserTokenRecord(store.emailVerificationTokens, existing.id);
+      store.magicLinkTokens = store.magicLinkTokens.filter((token) => token.email !== email);
       return;
     }
 
@@ -248,8 +298,8 @@ export async function demoSignup(input: { name: string; email: string; password:
       email,
       passwordHash,
       role,
-      status: UserStatus.ACTIVE,
-      isEmailVerified: true,
+      status: UserStatus.PENDING,
+      isEmailVerified: false,
       avatarUrl: null,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -257,18 +307,52 @@ export async function demoSignup(input: { name: string; email: string; password:
 
     store.users.push(user);
     ensureLeaderboard(store, user.id);
-    createdUser = user;
+    verificationToken = addUserTokenRecord(store.emailVerificationTokens, user.id);
   });
 
-  return createdUser!;
+  return { verificationToken };
+}
+
+export async function demoVerifyEmail(token: string) {
+  let resultUser: DemoUser | null = null;
+
+  await updateStore((store) => {
+    const userId = consumeUserToken(
+      store.emailVerificationTokens,
+      token,
+      "INVALID_VERIFICATION_LINK",
+      "This verification link is invalid or has expired."
+    );
+
+    const user = store.users.find((item) => item.id === userId);
+    if (!user) {
+      throw new AppError(400, "INVALID_VERIFICATION_LINK", "This verification link is invalid or has expired.");
+    }
+
+    ensureAccountNotSuspended(user.status);
+    user.status = UserStatus.ACTIVE;
+    user.isEmailVerified = true;
+    user.name = user.name || deriveDisplayName(user.email);
+    user.updatedAt = nowIso();
+    ensureLeaderboard(store, user.id);
+    store.emailVerificationTokens = store.emailVerificationTokens.filter((item) => item.userId !== user.id);
+    resultUser = user;
+  });
+
+  return resultUser!;
 }
 
 export async function demoRequestMagicLogin(email: string) {
   const normalizedEmail = normalizeEmail(email);
-  let token = "";
+  let token: string | null = null;
 
   await updateStore((store) => {
-    token = addTokenRecord(store.magicLinkTokens, normalizedEmail);
+    const user = store.users.find((item) => item.email === normalizedEmail);
+    if (!user || user.status === UserStatus.SUSPENDED || !user.isEmailVerified || user.status !== UserStatus.ACTIVE) {
+      return;
+    }
+
+    token = addEmailTokenRecord(store.magicLinkTokens, normalizedEmail);
   });
 
   return token;
@@ -278,40 +362,20 @@ export async function demoVerifyMagicLogin(token: string) {
   let resultUser: DemoUser | null = null;
 
   await updateStore((store) => {
-    const email = consumeToken(
+    const email = consumeEmailToken(
       store.magicLinkTokens,
       token,
       "INVALID_MAGIC_LINK",
       "This login link is invalid or has expired."
     );
 
-    const existing = store.users.find((user) => user.email === email);
-    if (existing) {
-      ensureAccountNotSuspended(existing.status);
-      existing.status = UserStatus.ACTIVE;
-      existing.isEmailVerified = true;
-      existing.name = existing.name || deriveDisplayName(email);
-      existing.updatedAt = nowIso();
-      ensureLeaderboard(store, existing.id);
-      resultUser = existing;
-      return;
+    const user = store.users.find((item) => item.email === email);
+    if (!user) {
+      throw new AppError(400, "INVALID_MAGIC_LINK", "This login link is invalid or has expired.");
     }
 
-    const timestamp = nowIso();
-    const user: DemoUser = {
-      id: makeId("usr"),
-      name: deriveDisplayName(email),
-      email,
-      passwordHash: null,
-      role: email.includes("admin") || email.includes("aviral") ? Role.ADMIN : Role.LEARNER,
-      status: UserStatus.ACTIVE,
-      isEmailVerified: true,
-      avatarUrl: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-
-    store.users.push(user);
+    ensureAccountNotSuspended(user.status);
+    ensureAccountVerified(user);
     ensureLeaderboard(store, user.id);
     resultUser = user;
   });
@@ -331,7 +395,7 @@ export async function demoForgotPassword(email: string) {
   await updateStore((store) => {
     const user = store.users.find((item) => item.email === normalizedEmail);
     if (!user || user.status === UserStatus.SUSPENDED) return;
-    token = addTokenRecord(store.passwordResetTokens, normalizedEmail);
+    token = addEmailTokenRecord(store.passwordResetTokens, normalizedEmail);
   });
 
   return token;
@@ -339,7 +403,7 @@ export async function demoForgotPassword(email: string) {
 
 export async function demoResetPassword(input: { token: string; newPassword: string }) {
   await updateStore((store) => {
-    const email = consumeToken(
+    const email = consumeEmailToken(
       store.passwordResetTokens,
       input.token,
       "INVALID_RESET_LINK",
@@ -352,8 +416,6 @@ export async function demoResetPassword(input: { token: string; newPassword: str
 
     ensureAccountNotSuspended(user.status);
     user.passwordHash = bcrypt.hashSync(input.newPassword, 10);
-    user.status = UserStatus.ACTIVE;
-    user.isEmailVerified = true;
     user.updatedAt = nowIso();
     ensureLeaderboard(store, user.id);
   });
@@ -440,6 +502,7 @@ export async function demoDeleteUser(userId: string) {
     if (user) {
       store.magicLinkTokens = store.magicLinkTokens.filter((token) => token.email !== user.email);
       store.passwordResetTokens = store.passwordResetTokens.filter((token) => token.email !== user.email);
+      store.emailVerificationTokens = store.emailVerificationTokens.filter((token) => token.userId !== user.id);
     }
 
     store.users = store.users.filter((user) => user.id !== userId);
