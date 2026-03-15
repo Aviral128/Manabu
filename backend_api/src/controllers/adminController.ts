@@ -7,7 +7,7 @@ import * as quizService from "../services/quizService";
 
 const userUpdateSchema = z.object({
   displayName: z.string().min(2).optional(),
-  role: z.enum(["admin", "learner"]).optional(),
+  role: z.enum(["admin", "manager", "learner"]).optional(),
   status: z.enum(["pending", "active", "suspended"]).optional(),
   avatarUrl: z.string().url().nullable().optional(),
 });
@@ -28,7 +28,7 @@ export async function listUsersController(_request: Request, response: Response)
 export async function updateUserController(request: Request, response: Response) {
   const userId = routeParam(request.params.id);
   const input = userUpdateSchema.parse(request.body);
-  const user = await updateUser(userId, input);
+  const user = await updateUser(userId, input, request.user!);
   await logAdminAction({
     actorId: request.user?.userId,
     action: "user.update",

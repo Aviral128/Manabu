@@ -79,6 +79,13 @@ async function main() {
     Role.ADMIN
   );
 
+  const adminTwo = await upsertUser(
+    "Aviral Sultaniya",
+    "sultaniyaaviral@gmail.com",
+    "StrongPass123",
+    Role.ADMIN
+  );
+
   const learner = await upsertUser(
     "Learner Demo",
     "learner@manabu.app",
@@ -94,6 +101,7 @@ async function main() {
   );
 
   await seedLeaderboard(admin.id, 540, 9, ["Founder", "Admin"]);
+  await seedLeaderboard(adminTwo.id, 480, 7, ["Founder", "Admin"]);
   await seedLeaderboard(learner.id, 220, 4, ["Starter", "Quiz Sprint"]);
   await seedLeaderboard(learnerTwo.id, 170, 2, ["Starter"]);
 

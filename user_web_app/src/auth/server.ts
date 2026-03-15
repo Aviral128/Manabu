@@ -15,16 +15,7 @@ type CookieReader = {
   get(name: string): { value: string } | undefined;
 };
 
-const DEFAULT_ADMIN_EMAILS = ["admin@manabu.app", "aviral@manabu.app", "aviral.sultaniya@manabu.app"];
-
-function parseAdminEmails(): string[] {
-  const raw = process.env.MANABU_ADMIN_EMAILS ?? process.env.NEXT_PUBLIC_MANABU_ADMIN_EMAILS;
-  if (!raw) return DEFAULT_ADMIN_EMAILS;
-  return raw
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
+const DEFAULT_ADMIN_EMAILS: string[] = ["sultaniyaaviral@gmail.com", "codemva2025@gmail.com"];
 
 function cookieOptions(maxAge: number, httpOnly: boolean, secure: boolean) {
   return {
@@ -42,8 +33,7 @@ export function getBackendApiBaseUrl(): string {
 
 export function resolveUserRole(email: string): UserRole {
   const normalized = email.trim().toLowerCase();
-  const admins = parseAdminEmails();
-  if (admins.includes(normalized) || normalized.includes("admin") || normalized.includes("aviral")) {
+  if (DEFAULT_ADMIN_EMAILS.includes(normalized)) {
     return "admin";
   }
   return "learner";

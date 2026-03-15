@@ -19,6 +19,7 @@
     "verify:health": "node scripts/verify-health.cjs",
     "verify:routes": "node scripts/verify-routes.cjs",
     "verify:custom-quiz": "node scripts/verify-custom-quiz.cjs",
+    "verify:roles": "node scripts/verify-role-hierarchy.cjs",
     "verify:magic-login": "node scripts/verify-magic-login.cjs",
     "verify:signup": "node scripts/verify-signup.cjs",
     "verify:password-reset": "node scripts/verify-password-reset.cjs"

@@ -2,7 +2,7 @@ export type UserProfile = {
   userId: string;
   displayName: string;
   email?: string;
-  role?: "admin" | "learner";
+  role?: "admin" | "manager" | "learner";
   status?: "active" | "suspended";
   avatarUrl?: string;
   leaderboard?: {

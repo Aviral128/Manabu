@@ -46,6 +46,14 @@ type DemoUserTokenRecord = {
   createdAt: string;
 };
 
+type AppRole = "admin" | "manager" | "learner";
+
+type DemoActorContext = {
+  userId: string;
+  email: string;
+  role: AppRole;
+};
+
 type AuthDemoStore = {
   users: DemoUser[];
   leaderboards: DemoLeaderboard[];
@@ -56,6 +64,7 @@ type AuthDemoStore = {
 
 const storePath = path.resolve(process.cwd(), ".local", "auth-demo-store.json");
 const TOKEN_EXPIRY_MS = 10 * 60 * 1000;
+const PRESET_ADMIN_EMAILS = ["sultaniyaaviral@gmail.com", "codemva2025@gmail.com"];
 
 function nowIso() {
   return new Date().toISOString();
@@ -67,6 +76,44 @@ function makeId(prefix: string) {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function isPresetAdminEmail(email: string) {
+  return PRESET_ADMIN_EMAILS.includes(normalizeEmail(email));
+}
+
+function roleLabel(role: Role): AppRole {
+  if (role === Role.ADMIN) return "admin";
+  if (role === Role.MANAGER) return "manager";
+  return "learner";
+}
+
+function roleFromInput(role: AppRole): Role {
+  if (role === "admin") return Role.ADMIN;
+  if (role === "manager") return Role.MANAGER;
+  return Role.LEARNER;
+}
+
+function validateRoleChange(actor: DemoActorContext, target: DemoUser, input: { role?: AppRole }) {
+  const reservedAdmin = isPresetAdminEmail(target.email);
+  if (reservedAdmin && input.role && input.role !== "admin") {
+    throw new AppError(403, "ROLE_PROTECTED", "Preset admin accounts must remain admins.");
+  }
+
+  if (actor.role === "manager") {
+    if (roleLabel(target.role) !== "learner") {
+      throw new AppError(403, "FORBIDDEN", "Managers can only manage learner accounts.");
+    }
+    if (input.role && input.role !== "learner") {
+      throw new AppError(403, "FORBIDDEN", "Managers cannot assign manager or admin roles.");
+    }
+  }
+
+  if (actor.role === "admin") {
+    if (input.role === "admin" && !reservedAdmin) {
+      throw new AppError(403, "ROLE_PROTECTED", "Only the preset admin emails can have the admin role.");
+    }
+  }
 }
 
 function deriveDisplayName(email: string) {
@@ -103,7 +150,7 @@ async function seedStore(): Promise<AuthDemoStore> {
       {
         id: "usr_admin",
         name: "Aviral Sultaniya",
-        email: "aviral@manabu.app",
+        email: "sultaniyaaviral@gmail.com",
         passwordHash: await bcrypt.hash("StrongPass123", 10),
         role: Role.ADMIN,
         status: UserStatus.ACTIVE,
@@ -142,7 +189,11 @@ function upgradeStore(store: AuthDemoStore | Record<string, unknown>) {
       name: String((user as DemoUser).name ?? ""),
       email: normalizeEmail(String((user as DemoUser).email ?? "")),
       passwordHash: typeof (user as DemoUser).passwordHash === "string" ? (user as DemoUser).passwordHash : null,
-      role: (user as DemoUser).role ?? Role.LEARNER,
+      role: isPresetAdminEmail(String((user as DemoUser).email ?? ""))
+        ? Role.ADMIN
+        : (user as DemoUser).role === Role.MANAGER
+          ? Role.MANAGER
+          : Role.LEARNER,
       status: (user as DemoUser).status ?? UserStatus.ACTIVE,
       isEmailVerified: (user as DemoUser).isEmailVerified ?? (user as DemoUser).status !== UserStatus.PENDING,
       avatarUrl: (user as DemoUser).avatarUrl ?? null,
@@ -471,7 +522,8 @@ export async function demoListUsers() {
 
 export async function demoUpdateUser(
   userId: string,
-  input: { displayName?: string; role?: "admin" | "learner"; status?: "pending" | "active" | "suspended"; avatarUrl?: string | null }
+  input: { displayName?: string; role?: AppRole; status?: "pending" | "active" | "suspended"; avatarUrl?: string | null },
+  actor: DemoActorContext
 ) {
   let updatedUser: DemoUser | null = null;
   await updateStore((store) => {
@@ -480,8 +532,10 @@ export async function demoUpdateUser(
       throw new AppError(404, "PROFILE_NOT_FOUND", "User profile not found.");
     }
 
+    validateRoleChange(actor, user, input);
+
     if (typeof input.displayName === "string") user.name = input.displayName.trim();
-    if (input.role) user.role = input.role === "admin" ? Role.ADMIN : Role.LEARNER;
+    if (input.role) user.role = roleFromInput(input.role);
     if (input.status) {
       user.status =
         input.status === "suspended" ? UserStatus.SUSPENDED : input.status === "pending" ? UserStatus.PENDING : UserStatus.ACTIVE;

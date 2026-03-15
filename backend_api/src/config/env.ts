@@ -33,6 +33,8 @@ const optionalEmailSchema = z.preprocess((value) => {
   return trimmed ? trimmed : undefined;
 }, z.string().email().optional());
 
+const PRESET_ADMIN_EMAILS: string[] = ["sultaniyaaviral@gmail.com", "codemva2025@gmail.com"];
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(7200),
@@ -40,7 +42,6 @@ const envSchema = z.object({
   DATABASE_URL: databaseUrlSchema,
   JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default("7d"),
-  MANABU_ADMIN_EMAILS: z.string().default("admin@manabu.app,aviral@manabu.app,aviral.sultaniya@manabu.app"),
   CORS_ORIGINS: z.string().default("http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:3000,http://localhost:3001,http://127.0.0.1:8081"),
   MAGIC_LINK_EXPIRY: z.coerce.number().int().min(1).max(60).default(10),
   MANABU_WEB_URL: z.string().url().default("https://manabu-mu.vercel.app"),
@@ -87,6 +88,6 @@ export const env = {
   smtpUser: parsed.SMTP_USER ?? "",
   smtpPass: parsed.SMTP_PASS ?? "",
   smtpFrom: parsed.SMTP_FROM ?? "",
-  adminEmails: parsed.MANABU_ADMIN_EMAILS.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean),
+  adminEmails: [...PRESET_ADMIN_EMAILS],
   corsOrigins: parsed.CORS_ORIGINS.split(",").map((item) => item.trim()).filter(Boolean),
 };

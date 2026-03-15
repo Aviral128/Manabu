@@ -5,7 +5,7 @@ import { env } from "../config/env";
 export type TokenPayload = {
   userId: string;
   email: string;
-  role: "admin" | "learner";
+  role: "admin" | "manager" | "learner";
 };
 
 export function signToken(payload: TokenPayload): string {

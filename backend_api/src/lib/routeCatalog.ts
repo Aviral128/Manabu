@@ -2,7 +2,7 @@ export type RouteCatalogEntry = {
   area: "system" | "auth" | "quiz" | "admin" | "monitoring";
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   path: string;
-  auth: "public" | "user" | "admin";
+  auth: "public" | "user" | "manager" | "admin";
   description: string;
 };
 
@@ -25,9 +25,9 @@ export const ROUTE_CATALOG: RouteCatalogEntry[] = [
   { area: "quiz", method: "GET", path: "/api/quizzes/:slug", auth: "public", description: "Read a quiz by slug" },
   { area: "quiz", method: "POST", path: "/api/quizzes/:id/attempts", auth: "user", description: "Submit a quiz attempt" },
 
-  { area: "admin", method: "GET", path: "/api/admin/summary", auth: "admin", description: "Admin dashboard summary" },
-  { area: "admin", method: "GET", path: "/api/admin/users", auth: "admin", description: "List users for moderation" },
-  { area: "admin", method: "PATCH", path: "/api/admin/users/:id", auth: "admin", description: "Update a user account" },
+  { area: "admin", method: "GET", path: "/api/admin/summary", auth: "manager", description: "Manager or admin dashboard summary" },
+  { area: "admin", method: "GET", path: "/api/admin/users", auth: "manager", description: "List users for moderation" },
+  { area: "admin", method: "PATCH", path: "/api/admin/users/:id", auth: "manager", description: "Update a user account" },
   { area: "admin", method: "DELETE", path: "/api/admin/users/:id", auth: "admin", description: "Delete a user account" },
   { area: "admin", method: "GET", path: "/api/admin/quizzes", auth: "admin", description: "List quizzes for admin" },
   { area: "admin", method: "POST", path: "/api/admin/quizzes", auth: "admin", description: "Create a quiz" },

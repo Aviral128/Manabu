@@ -1,7 +1,7 @@
 ﻿export type AuthenticatedUser = {
   userId: string;
   email: string;
-  role: "admin" | "learner";
+  role: "admin" | "manager" | "learner";
 };
 
 declare global {

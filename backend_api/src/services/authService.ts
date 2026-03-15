@@ -35,16 +35,37 @@ type UserRecord = {
   isEmailVerified: boolean;
 };
 
+type AppRole = "admin" | "manager" | "learner";
+
+type UserUpdateInput = {
+  displayName?: string;
+  role?: AppRole;
+  status?: "pending" | "active" | "suspended";
+  avatarUrl?: string | null;
+};
+
+type ActorContext = {
+  userId: string;
+  email: string;
+  role: AppRole;
+};
+
+function isPresetAdminEmail(email: string) {
+  return env.adminEmails.includes(normalizeEmail(email));
+}
+
 function toRole(email: string): Role {
-  return env.adminEmails.includes(email.toLowerCase()) || email.toLowerCase().includes("aviral") ? Role.ADMIN : Role.LEARNER;
+  return isPresetAdminEmail(email) ? Role.ADMIN : Role.LEARNER;
 }
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
-function roleLabel(role: Role): "admin" | "learner" {
-  return role === Role.ADMIN ? "admin" : "learner";
+function roleLabel(role: Role): AppRole {
+  if (role === Role.ADMIN) return "admin";
+  if (role === Role.MANAGER) return "manager";
+  return "learner";
 }
 
 function statusLabel(status: UserStatus): "pending" | "active" | "suspended" {
@@ -91,6 +112,69 @@ function ensureAccountVerified(user: Pick<UserRecord, "status" | "isEmailVerifie
 function ensurePasswordLoginAvailable(passwordHash: string | null): asserts passwordHash is string {
   if (!passwordHash) {
     throw new AppError(400, "PASSWORD_LOGIN_UNAVAILABLE", "Use a magic link or reset your password to set a password.");
+  }
+}
+
+function roleFromInput(role: AppRole): Role {
+  if (role === "admin") return Role.ADMIN;
+  if (role === "manager") return Role.MANAGER;
+  return Role.LEARNER;
+}
+
+function buildUserUpdateData(input: UserUpdateInput) {
+  const data: {
+    name?: string;
+    role?: Role;
+    status?: UserStatus;
+    isEmailVerified?: boolean;
+    avatarUrl?: string | null;
+  } = {};
+
+  if (typeof input.displayName === "string") {
+    data.name = input.displayName.trim();
+  }
+  if (input.role) {
+    data.role = roleFromInput(input.role);
+  }
+  if (input.status) {
+    data.status =
+      input.status === "suspended" ? UserStatus.SUSPENDED : input.status === "pending" ? UserStatus.PENDING : UserStatus.ACTIVE;
+    if (input.status === "pending") {
+      data.isEmailVerified = false;
+    }
+    if (input.status === "active") {
+      data.isEmailVerified = true;
+    }
+  }
+  if ("avatarUrl" in input) {
+    data.avatarUrl = input.avatarUrl?.trim() || null;
+  }
+
+  return data;
+}
+
+function validateRoleChange(actor: ActorContext, target: { email: string; role: Role }, input: UserUpdateInput) {
+  const nextRole = input.role;
+  const targetRole = roleLabel(target.role);
+  const reservedAdmin = isPresetAdminEmail(target.email);
+
+  if (reservedAdmin && nextRole && nextRole !== "admin") {
+    throw new AppError(403, "ROLE_PROTECTED", "Preset admin accounts must remain admins.");
+  }
+
+  if (actor.role === "manager") {
+    if (targetRole !== "learner") {
+      throw new AppError(403, "FORBIDDEN", "Managers can only manage learner accounts.");
+    }
+    if (nextRole && nextRole !== "learner") {
+      throw new AppError(403, "FORBIDDEN", "Managers cannot assign manager or admin roles.");
+    }
+  }
+
+  if (actor.role === "admin") {
+    if (nextRole === "admin" && !reservedAdmin) {
+      throw new AppError(403, "ROLE_PROTECTED", "Only the preset admin emails can have the admin role.");
+    }
   }
 }
 
@@ -614,42 +698,24 @@ export async function listUsers() {
 
 export async function updateUser(
   userId: string,
-  input: { displayName?: string; role?: "admin" | "learner"; status?: "pending" | "active" | "suspended"; avatarUrl?: string | null }
+  input: UserUpdateInput,
+  actor: ActorContext
 ) {
-  const data: {
-    name?: string;
-    role?: Role;
-    status?: UserStatus;
-    isEmailVerified?: boolean;
-    avatarUrl?: string | null;
-  } = {};
-
-  if (typeof input.displayName === "string") {
-    data.name = input.displayName.trim();
-  }
-  if (input.role) {
-    data.role = input.role === "admin" ? Role.ADMIN : Role.LEARNER;
-  }
-  if (input.status) {
-    data.status =
-      input.status === "suspended" ? UserStatus.SUSPENDED : input.status === "pending" ? UserStatus.PENDING : UserStatus.ACTIVE;
-    if (input.status === "pending") {
-      data.isEmailVerified = false;
-    }
-    if (input.status === "active") {
-      data.isEmailVerified = true;
-    }
-  }
-  if ("avatarUrl" in input) {
-    data.avatarUrl = input.avatarUrl?.trim() || null;
-  }
+  const data = buildUserUpdateData(input);
 
   try {
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) {
+      throw new AppError(404, "PROFILE_NOT_FOUND", "User profile not found.");
+    }
+
+    validateRoleChange(actor, existing, input);
+
     const user = await prisma.user.update({ where: { id: userId }, data });
     return buildUserPayload(user);
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
-    const user = await demoUpdateUser(userId, input);
+    const user = await demoUpdateUser(userId, input, actor);
     return buildUserPayload(user);
   }
 }

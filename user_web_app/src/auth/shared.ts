@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "learner";
+export type UserRole = "admin" | "manager" | "learner";
 
 export type AuthUser = {
   userId: string;
@@ -58,7 +58,7 @@ export function parseUserCookie(value?: string | null): AuthUser | null {
       return null;
     }
 
-    const role: UserRole = parsed.role === "admin" ? "admin" : "learner";
+    const role: UserRole = parsed.role === "admin" ? "admin" : parsed.role === "manager" ? "manager" : "learner";
     return {
       userId: parsed.userId,
       email: parsed.email,
