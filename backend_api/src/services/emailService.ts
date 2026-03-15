@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 
 import { env } from "../config/env";
 
@@ -19,15 +20,19 @@ function getTransporter() {
   }
 
   if (!transporter) {
-    transporter = nodemailer.createTransport({
+    const transportOptions: SMTPTransport.Options & { family: 4 } = {
       host: env.smtpHost,
       port: env.smtpPort,
       secure: true,
+      requireTLS: true,
+      family: 4,
       auth: {
         user: env.smtpUser,
         pass: env.smtpPass,
       },
-    });
+    };
+
+    transporter = nodemailer.createTransport(transportOptions as SMTPTransport.Options);
   }
   return transporter;
 }
