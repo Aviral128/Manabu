@@ -2,6 +2,7 @@ import React from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
+import { BrandHeroCard } from "../components/BrandHeroCard";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Input } from "../components/Input";
@@ -31,13 +32,11 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<RootStackPara
 
   return (
     <ScreenShell>
-      <Card style={{ backgroundColor: theme.colors.surface }}>
-        <Text style={{ color: theme.colors.textMuted, textTransform: "uppercase", letterSpacing: 1.2, fontSize: 12 }}>AI-powered learning ecosystem</Text>
-        <Text style={{ color: theme.colors.text, fontSize: 34, fontWeight: "800", marginTop: 12 }}>Welcome back</Text>
-        <Text style={{ color: theme.colors.textMuted, marginTop: 10 }}>
-          Login to sync your quizzes, streaks, and progress with the shared MANABU backend.
-        </Text>
-      </Card>
+      <BrandHeroCard
+        eyebrow="Cinematic adaptive learning"
+        title="Welcome back"
+        body="Login to sync your quizzes, streaks, and progress with the same MANABU experience you see on the web."
+      />
 
       <Card>
         <View style={{ gap: 12 }}>

@@ -2,6 +2,7 @@ import React from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
+import { BrandHeroCard } from "../components/BrandHeroCard";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Input } from "../components/Input";
@@ -32,12 +33,11 @@ export function SignupScreen({ navigation }: NativeStackScreenProps<RootStackPar
 
   return (
     <ScreenShell>
-      <Card style={{ backgroundColor: theme.colors.surface }}>
-        <Text style={{ color: theme.colors.text, fontSize: 32, fontWeight: "800" }}>Create your account</Text>
-        <Text style={{ color: theme.colors.textMuted, marginTop: 10 }}>
-          Start with a real profile stored in the MANABU backend and continue across web and mobile.
-        </Text>
-      </Card>
+      <BrandHeroCard
+        eyebrow="Cross-device account setup"
+        title="Create your account"
+        body="Start on mobile, verify once, and continue with the same MANABU identity across web and app."
+      />
       <Card>
         <View style={{ gap: 12 }}>
           <Input label="Display name" value={name} onChangeText={setName} placeholder="Enter your full name" />
