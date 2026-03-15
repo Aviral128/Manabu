@@ -42,17 +42,36 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("7d"),
   MANABU_ADMIN_EMAILS: z.string().default("admin@manabu.app,aviral@manabu.app,aviral.sultaniya@manabu.app"),
   CORS_ORIGINS: z.string().default("http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:3000,http://localhost:3001,http://127.0.0.1:8081"),
-  RESEND_API_KEY: optionalStringSchema,
   MAGIC_LINK_EXPIRY: z.coerce.number().int().min(1).max(60).default(10),
   MANABU_WEB_URL: z.string().url().default("https://manabu-mu.vercel.app"),
-  RESEND_FROM_EMAIL: optionalEmailSchema,
+  SMTP_HOST: z.string().default("smtp.gmail.com"),
+  SMTP_PORT: z.coerce.number().int().positive().default(465),
+  SMTP_USER: optionalEmailSchema,
+  SMTP_PASS: optionalStringSchema,
+  SMTP_FROM: optionalStringSchema,
 }).superRefine((value, context) => {
-  if (value.NODE_ENV === "production" && !value.RESEND_API_KEY) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "RESEND_API_KEY is required in production for verification, magic-link, and password reset email delivery.",
-      path: ["RESEND_API_KEY"],
-    });
+  if (value.NODE_ENV === "production") {
+    if (!value.SMTP_USER) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SMTP_USER is required in production for Gmail SMTP delivery.",
+        path: ["SMTP_USER"],
+      });
+    }
+    if (!value.SMTP_PASS) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SMTP_PASS is required in production for Gmail SMTP delivery.",
+        path: ["SMTP_PASS"],
+      });
+    }
+    if (!value.SMTP_FROM) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SMTP_FROM is required in production for Gmail SMTP delivery.",
+        path: ["SMTP_FROM"],
+      });
+    }
   }
 });
 
@@ -61,10 +80,13 @@ process.env.DATABASE_URL = parsed.DATABASE_URL;
 
 export const env = {
   ...parsed,
-  resendApiKey: parsed.RESEND_API_KEY ?? "",
   magicLinkExpiryMinutes: parsed.MAGIC_LINK_EXPIRY,
   webBaseUrl: parsed.MANABU_WEB_URL.replace(/\/+$/, ""),
-  resendFromEmail: parsed.RESEND_FROM_EMAIL ?? "onboarding@resend.dev",
+  smtpHost: parsed.SMTP_HOST.trim(),
+  smtpPort: parsed.SMTP_PORT,
+  smtpUser: parsed.SMTP_USER ?? "",
+  smtpPass: parsed.SMTP_PASS ?? "",
+  smtpFrom: parsed.SMTP_FROM ?? "",
   adminEmails: parsed.MANABU_ADMIN_EMAILS.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean),
   corsOrigins: parsed.CORS_ORIGINS.split(",").map((item) => item.trim()).filter(Boolean),
 };
