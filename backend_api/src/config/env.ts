@@ -45,32 +45,23 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default("http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:3000,http://localhost:3001,http://127.0.0.1:8081"),
   MAGIC_LINK_EXPIRY: z.coerce.number().int().min(1).max(60).default(10),
   MANABU_WEB_URL: z.string().url().default("https://manabu-mu.vercel.app"),
-  SMTP_HOST: z.string().default("smtp.gmail.com"),
-  SMTP_PORT: z.coerce.number().int().positive().default(465),
-  SMTP_USER: optionalEmailSchema,
-  SMTP_PASS: optionalStringSchema,
-  SMTP_FROM: optionalStringSchema,
+  BREVO_API_KEY: optionalStringSchema,
+  BREVO_FROM_EMAIL: optionalEmailSchema,
+  BREVO_FROM_NAME: optionalStringSchema,
 }).superRefine((value, context) => {
   if (value.NODE_ENV === "production") {
-    if (!value.SMTP_USER) {
+    if (!value.BREVO_API_KEY) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "SMTP_USER is required in production for Gmail SMTP delivery.",
-        path: ["SMTP_USER"],
+        message: "BREVO_API_KEY is required in production for Brevo email delivery.",
+        path: ["BREVO_API_KEY"],
       });
     }
-    if (!value.SMTP_PASS) {
+    if (!value.BREVO_FROM_EMAIL) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "SMTP_PASS is required in production for Gmail SMTP delivery.",
-        path: ["SMTP_PASS"],
-      });
-    }
-    if (!value.SMTP_FROM) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "SMTP_FROM is required in production for Gmail SMTP delivery.",
-        path: ["SMTP_FROM"],
+        message: "BREVO_FROM_EMAIL is required in production for Brevo email delivery.",
+        path: ["BREVO_FROM_EMAIL"],
       });
     }
   }
@@ -83,11 +74,9 @@ export const env = {
   ...parsed,
   magicLinkExpiryMinutes: parsed.MAGIC_LINK_EXPIRY,
   webBaseUrl: parsed.MANABU_WEB_URL.replace(/\/+$/, ""),
-  smtpHost: parsed.SMTP_HOST.trim(),
-  smtpPort: parsed.SMTP_PORT,
-  smtpUser: parsed.SMTP_USER ?? "",
-  smtpPass: parsed.SMTP_PASS ?? "",
-  smtpFrom: parsed.SMTP_FROM ?? "",
+  brevoApiKey: parsed.BREVO_API_KEY ?? "",
+  brevoFromEmail: parsed.BREVO_FROM_EMAIL ?? "",
+  brevoFromName: parsed.BREVO_FROM_NAME ?? "MANABU",
   adminEmails: [...PRESET_ADMIN_EMAILS],
   corsOrigins: parsed.CORS_ORIGINS.split(",").map((item) => item.trim()).filter(Boolean),
 };

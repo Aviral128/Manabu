@@ -8,23 +8,38 @@ type EmailInput = {
 };
 
 const client = SibApiV3Sdk.ApiClient.instance;
-client.authentications["api-key"].apiKey = process.env.BREVO_API_KEY;
+if (env.brevoApiKey) {
+  client.authentications["api-key"].apiKey = env.brevoApiKey;
+}
 
 const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 async function sendEmail(input: EmailInput) {
+  if (!env.brevoApiKey || !env.brevoFromEmail) {
+    if (env.NODE_ENV === "production") {
+      throw new Error("Brevo email configuration is incomplete. Set BREVO_API_KEY and BREVO_FROM_EMAIL.");
+    }
+
+    console.info("email_preview", {
+      to: input.email,
+      subject: input.subject,
+      html: input.html,
+    });
+    return;
+  }
+
   await emailApi.sendTransacEmail({
     sender: {
-      email: env.smtpFrom,
-      name: "MANABU"
+      email: env.brevoFromEmail,
+      name: env.brevoFromName,
     },
     to: [
       {
-        email: input.email
-      }
+        email: input.email,
+      },
     ],
     subject: input.subject,
-    htmlContent: input.html
+    htmlContent: input.html,
   });
 }
 
@@ -38,7 +53,7 @@ export async function sendVerificationEmail(email: string, link: string) {
       <a href="${link}" style="padding:12px 18px;background:#22c55e;color:white;text-decoration:none;border-radius:10px;">
         Verify Email
       </a>
-    `
+    `,
   });
 }
 
@@ -53,7 +68,7 @@ export async function sendMagicLoginEmail(email: string, link: string) {
       <a href="${link}" style="padding:12px 18px;background:#0ea5e9;color:white;text-decoration:none;border-radius:10px;">
         Login
       </a>
-    `
+    `,
   });
 }
 
@@ -66,6 +81,6 @@ export async function sendPasswordResetEmail(email: string, link: string) {
       <a href="${link}" style="padding:12px 18px;background:#0ea5e9;color:white;text-decoration:none;border-radius:10px;">
         Reset Password
       </a>
-    `
+    `,
   });
 }
