@@ -1,6 +1,4 @@
-import nodemailer from "nodemailer";
-import type SMTPTransport from "nodemailer/lib/smtp-transport";
-
+import SibApiV3Sdk from "sib-api-v3-sdk";
 import { env } from "../config/env";
 
 type EmailInput = {
@@ -9,55 +7,24 @@ type EmailInput = {
   html: string;
 };
 
-let transporter: nodemailer.Transporter | null = null;
+const client = SibApiV3Sdk.ApiClient.instance;
+client.authentications["api-key"].apiKey = process.env.BREVO_API_KEY;
 
-function getTransporter() {
-  if (!env.smtpUser || !env.smtpPass || !env.smtpFrom) {
-    if (env.NODE_ENV === "production") {
-      throw new Error("SMTP configuration is incomplete. Set SMTP_USER, SMTP_PASS, and SMTP_FROM.");
-    }
-    return null;
-  }
-
-  if (!transporter) {
-    const transportOptions: SMTPTransport.Options = {
-      host: env.smtpHost,
-      port: Number(env.smtpPort) || 587,
-      secure: false,
-      auth: {
-        user: env.smtpUser,
-        pass: env.smtpPass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      connectionTimeout: 15000,
-      greetingTimeout: 10000,
-    };
-
-    transporter = nodemailer.createTransport(transportOptions);
-  }
-
-  return transporter;
-}
+const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 async function sendEmail(input: EmailInput) {
-  const client = getTransporter();
-
-  if (!client) {
-    console.info("email_preview", {
-      to: input.email,
-      subject: input.subject,
-      html: input.html,
-    });
-    return;
-  }
-
-  await client.sendMail({
-    from: env.smtpFrom,
-    to: input.email,
+  await emailApi.sendTransacEmail({
+    sender: {
+      email: env.smtpFrom,
+      name: "MANABU"
+    },
+    to: [
+      {
+        email: input.email
+      }
+    ],
     subject: input.subject,
-    html: input.html,
+    htmlContent: input.html
   });
 }
 
@@ -66,18 +33,12 @@ export async function sendVerificationEmail(email: string, link: string) {
     email,
     subject: "Verify your MANABU account",
     html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
-        <h2>Verify your MANABU account</h2>
-        <p>Confirm your email address to activate your account and unlock login.</p>
-        <p>
-          <a href="${link}" 
-          style="display:inline-block;padding:12px 18px;border-radius:12px;background:#22c55e;color:#042012;text-decoration:none;font-weight:700;">
-          Verify email
-          </a>
-        </p>
-        <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
-      </div>
-    `,
+      <h2>Verify your MANABU account</h2>
+      <p>Click the button below to verify your email.</p>
+      <a href="${link}" style="padding:12px 18px;background:#22c55e;color:white;text-decoration:none;border-radius:10px;">
+        Verify Email
+      </a>
+    `
   });
 }
 
@@ -88,37 +49,23 @@ export async function sendMagicLoginEmail(email: string, link: string) {
     email,
     subject: "Login to MANABU",
     html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
-        <h2>Login to MANABU</h2>
-        <p>Click the link below to login.</p>
-        <p>
-          <a href="${link}" 
-          style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">
-          Login
-          </a>
-        </p>
-        <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
-      </div>
-    `,
+      <h2>Login to MANABU</h2>
+      <a href="${link}" style="padding:12px 18px;background:#0ea5e9;color:white;text-decoration:none;border-radius:10px;">
+        Login
+      </a>
+    `
   });
 }
 
 export async function sendPasswordResetEmail(email: string, link: string) {
   await sendEmail({
     email,
-    subject: "Reset your MANABU password",
+    subject: "Reset your password",
     html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
-        <h2>Reset your MANABU password</h2>
-        <p>Click the link below to choose a new password.</p>
-        <p>
-          <a href="${link}" 
-          style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">
-          Reset password
-          </a>
-        </p>
-        <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
-      </div>
-    `,
+      <h2>Reset your password</h2>
+      <a href="${link}" style="padding:12px 18px;background:#0ea5e9;color:white;text-decoration:none;border-radius:10px;">
+        Reset Password
+      </a>
+    `
   });
 }
