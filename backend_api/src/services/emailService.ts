@@ -20,20 +20,24 @@ function getTransporter() {
   }
 
   if (!transporter) {
-    const transportOptions: SMTPTransport.Options & { family: 4 } = {
+    const transportOptions: SMTPTransport.Options = {
       host: env.smtpHost,
-      port: 587,
+      port: Number(env.smtpPort) || 587,
       secure: false,
-      requireTLS: true,
-      family: 4,
       auth: {
         user: env.smtpUser,
         pass: env.smtpPass,
       },
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
     };
 
-    transporter = nodemailer.createTransport(transportOptions as SMTPTransport.Options);
+    transporter = nodemailer.createTransport(transportOptions);
   }
+
   return transporter;
 }
 
@@ -65,7 +69,12 @@ export async function sendVerificationEmail(email: string, link: string) {
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
         <h2>Verify your MANABU account</h2>
         <p>Confirm your email address to activate your account and unlock login.</p>
-        <p><a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#22c55e;color:#042012;text-decoration:none;font-weight:700;">Verify email</a></p>
+        <p>
+          <a href="${link}" 
+          style="display:inline-block;padding:12px 18px;border-radius:12px;background:#22c55e;color:#042012;text-decoration:none;font-weight:700;">
+          Verify email
+          </a>
+        </p>
         <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
       </div>
     `,
@@ -82,7 +91,12 @@ export async function sendMagicLoginEmail(email: string, link: string) {
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
         <h2>Login to MANABU</h2>
         <p>Click the link below to login.</p>
-        <p><a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">Login</a></p>
+        <p>
+          <a href="${link}" 
+          style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">
+          Login
+          </a>
+        </p>
         <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
       </div>
     `,
@@ -97,7 +111,12 @@ export async function sendPasswordResetEmail(email: string, link: string) {
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #101828;">
         <h2>Reset your MANABU password</h2>
         <p>Click the link below to choose a new password.</p>
-        <p><a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">Reset password</a></p>
+        <p>
+          <a href="${link}" 
+          style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#001018;text-decoration:none;font-weight:700;">
+          Reset password
+          </a>
+        </p>
         <p>This link expires in ${env.magicLinkExpiryMinutes} minutes.</p>
       </div>
     `,
