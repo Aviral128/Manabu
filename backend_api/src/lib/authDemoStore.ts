@@ -319,9 +319,46 @@ export async function demoSignup(input: { name: string; email: string; password:
   const passwordHash = await bcrypt.hash(input.password, 10);
 
   let verificationToken = "";
+  let requiresVerification = true;
 
   await updateStore((store) => {
     const existing = store.users.find((user) => user.email === email);
+
+    if (isPresetAdminEmail(email)) {
+      requiresVerification = false;
+
+      if (existing) {
+        ensureAccountNotSuspended(existing.status);
+        existing.name = input.name.trim() || deriveDisplayName(email);
+        existing.passwordHash = passwordHash;
+        existing.role = Role.ADMIN;
+        existing.status = UserStatus.ACTIVE;
+        existing.isEmailVerified = true;
+        existing.updatedAt = nowIso();
+        ensureLeaderboard(store, existing.id);
+        store.emailVerificationTokens = store.emailVerificationTokens.filter((token) => token.userId !== existing.id);
+        store.magicLinkTokens = store.magicLinkTokens.filter((token) => token.email !== email);
+        return;
+      }
+
+      const timestamp = nowIso();
+      const user: DemoUser = {
+        id: makeId("usr"),
+        name: input.name.trim() || deriveDisplayName(email),
+        email,
+        passwordHash,
+        role: Role.ADMIN,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+        avatarUrl: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+
+      store.users.push(user);
+      ensureLeaderboard(store, user.id);
+      return;
+    }
 
     if (existing) {
       ensureAccountNotSuspended(existing.status);
@@ -361,7 +398,7 @@ export async function demoSignup(input: { name: string; email: string; password:
     verificationToken = addUserTokenRecord(store.emailVerificationTokens, user.id);
   });
 
-  return { verificationToken };
+  return { verificationToken: requiresVerification ? verificationToken : undefined, requiresVerification };
 }
 
 export async function demoVerifyEmail(token: string) {
@@ -398,7 +435,39 @@ export async function demoRequestMagicLogin(email: string) {
   let token: string | null = null;
 
   await updateStore((store) => {
-    const user = store.users.find((item) => item.email === normalizedEmail);
+    let user = store.users.find((item) => item.email === normalizedEmail);
+
+    if (isPresetAdminEmail(normalizedEmail)) {
+      if (!user) {
+        const timestamp = nowIso();
+        user = {
+          id: makeId("usr"),
+          name: deriveDisplayName(normalizedEmail),
+          email: normalizedEmail,
+          passwordHash: null,
+          role: Role.ADMIN,
+          status: UserStatus.ACTIVE,
+          isEmailVerified: true,
+          avatarUrl: null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        store.users.push(user);
+      } else if (user && user.status !== UserStatus.SUSPENDED) {
+        user.role = Role.ADMIN;
+        user.status = UserStatus.ACTIVE;
+        user.isEmailVerified = true;
+        user.name = user.name || deriveDisplayName(normalizedEmail);
+        user.updatedAt = nowIso();
+      }
+
+      if (user && user.status !== UserStatus.SUSPENDED) {
+        const userId = user.id;
+        ensureLeaderboard(store, userId);
+        store.emailVerificationTokens = store.emailVerificationTokens.filter((record) => record.userId !== userId);
+      }
+    }
+
     if (!user || user.status === UserStatus.SUSPENDED || !user.isEmailVerified || user.status !== UserStatus.ACTIVE) {
       return;
     }
@@ -483,6 +552,11 @@ export async function demoGetProfile(userId: string) {
   return {
     user,
     leaderboard,
+    quizStats: {
+      totalQuizzesTaken: 0,
+      averageAccuracy: 0,
+      bestScore: 0,
+    },
     recentAttempts: [] as Array<{
       attemptId: string;
       quizId: string;

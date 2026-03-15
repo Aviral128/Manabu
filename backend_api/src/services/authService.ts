@@ -208,6 +208,90 @@ async function ensureLeaderboard(client: DatabaseClient, userId: string) {
   });
 }
 
+async function provisionPresetAdminSignup(
+  client: DatabaseClient,
+  input: { name: string; email: string; passwordHash: string }
+) {
+  const email = normalizeEmail(input.email);
+  const displayName = input.name.trim() || deriveDisplayName(email);
+  const existing = await client.user.findUnique({ where: { email } });
+
+  if (existing) {
+    ensureAccountNotSuspended(existing.status);
+
+    const updated = await client.user.update({
+      where: { id: existing.id },
+      data: {
+        name: displayName,
+        passwordHash: input.passwordHash,
+        role: Role.ADMIN,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+      },
+    });
+
+    await client.emailVerificationToken.deleteMany({
+      where: { userId: updated.id },
+    });
+    await ensureLeaderboard(client, updated.id);
+    return updated;
+  }
+
+  const created = await client.user.create({
+    data: {
+      name: displayName,
+      email,
+      passwordHash: input.passwordHash,
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+    },
+  });
+
+  await ensureLeaderboard(client, created.id);
+  return created;
+}
+
+async function ensurePresetAdminMagicLoginUser(client: DatabaseClient, email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const existing = await client.user.findUnique({ where: { email: normalizedEmail } });
+
+  if (existing) {
+    if (existing.status === UserStatus.SUSPENDED) {
+      return existing;
+    }
+
+    const updated = await client.user.update({
+      where: { id: existing.id },
+      data: {
+        role: Role.ADMIN,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+        name: existing.name || deriveDisplayName(normalizedEmail),
+      },
+    });
+
+    await client.emailVerificationToken.deleteMany({
+      where: { userId: updated.id },
+    });
+    await ensureLeaderboard(client, updated.id);
+    return updated;
+  }
+
+  const created = await client.user.create({
+    data: {
+      name: deriveDisplayName(normalizedEmail),
+      email: normalizedEmail,
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+    },
+  });
+
+  await ensureLeaderboard(client, created.id);
+  return created;
+}
+
 async function issueEmailVerificationToken(client: DatabaseClient, userId: string) {
   const token = generateMagicToken();
 
@@ -331,13 +415,28 @@ export async function signup(input: { name: string; email: string; password: str
   const email = normalizeEmail(input.email);
   const passwordHash = await bcrypt.hash(input.password, 10);
   const role = toRole(email);
-  const response = {
+  const isPresetAdmin = isPresetAdminEmail(email);
+  const verificationResponse = {
     success: true as const,
     requiresVerification: true as const,
     message: "Check your email to verify your account.",
   };
+  const adminResponse = {
+    success: true as const,
+    requiresVerification: false as const,
+    message: "Admin account ready. You can log in now or request a magic link.",
+  };
 
   try {
+    if (isPresetAdmin) {
+      await provisionPresetAdminSignup(prisma, {
+        name: input.name,
+        email,
+        passwordHash,
+      });
+      return adminResponse;
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     let userId = "";
 
@@ -379,13 +478,17 @@ export async function signup(input: { name: string; email: string; password: str
     const verificationToken = await issueEmailVerificationToken(prisma, userId);
 
     await sendEmailVerificationEmail(email, buildEmailVerificationLink(verificationToken));
-    return response;
+    return verificationResponse;
   } catch (error) {
     if (!shouldUseAuthDemoStore(error)) throw error;
 
     const result = await demoSignup(input, role);
-    await sendEmailVerificationEmail(email, buildEmailVerificationLink(result.verificationToken));
-    return response;
+    if (result.requiresVerification && result.verificationToken) {
+      await sendEmailVerificationEmail(email, buildEmailVerificationLink(result.verificationToken));
+      return verificationResponse;
+    }
+
+    return adminResponse;
   }
 }
 
@@ -437,7 +540,11 @@ export async function requestMagicLogin(input: { email: string }) {
   };
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (isPresetAdminEmail(email)) {
+      user = await ensurePresetAdminMagicLoginUser(prisma, email);
+    }
+
     if (!user || user.status === UserStatus.SUSPENDED || user.status !== UserStatus.ACTIVE || !user.isEmailVerified) {
       return response;
     }
@@ -595,17 +702,27 @@ export async function resetPassword(input: { token: string; newPassword: string 
 
 export async function getProfile(userId: string) {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        leaderboard: true,
-        attempts: {
-          orderBy: { completedAt: "desc" },
-          take: 8,
-          include: { quiz: true },
+    const [user, quizStats] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          leaderboard: true,
+          attempts: {
+            orderBy: { completedAt: "desc" },
+            take: 8,
+            include: { quiz: true },
+          },
+          _count: {
+            select: { attempts: true },
+          },
         },
-      },
-    });
+      }),
+      prisma.quizAttempt.aggregate({
+        where: { userId },
+        _avg: { score: true },
+        _max: { score: true },
+      }),
+    ]);
 
     if (!user) {
       throw new AppError(404, "PROFILE_NOT_FOUND", "User profile not found.");
@@ -616,6 +733,11 @@ export async function getProfile(userId: string) {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       leaderboard: user.leaderboard,
+      quizStats: {
+        totalQuizzesTaken: user._count.attempts,
+        averageAccuracy: Math.round(Number(quizStats._avg.score ?? 0)),
+        bestScore: Number(quizStats._max.score ?? 0),
+      },
       recentAttempts: user.attempts.map((attempt) => ({
         attemptId: attempt.id,
         quizId: attempt.quizId,
@@ -634,6 +756,7 @@ export async function getProfile(userId: string) {
       createdAt: result.user.createdAt,
       updatedAt: result.user.updatedAt,
       leaderboard: result.leaderboard,
+      quizStats: result.quizStats,
       recentAttempts: result.recentAttempts,
     };
   }

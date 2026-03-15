@@ -2,18 +2,31 @@
 
 import React from "react";
 
+import { getQuiz, submitQuizAttempt, type QuizAttemptResult, type QuizDetails } from "../../services/quiz";
 import { MotionIn } from "../motion/MotionIn";
+import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { SkeletonBlock } from "../ui/SkeletonBlock";
 import { Spinner } from "../ui/Spinner";
-import { getQuiz, submitQuizAttempt, type QuizAttemptResult, type QuizDetails } from "../../services/quiz";
 
 type AnswerMap = Record<number, number>;
 type SessionQuestion = QuizDetails["questions"][number];
+type PersistedQuizSession = {
+  quizId: string;
+  index: number;
+  answers: AnswerMap;
+  questionCount: number;
+  timeLimitMinutes: number;
+  sessionQuestions: SessionQuestion[];
+  expiresAt: number;
+  finished: boolean;
+};
 
 const MIN_TIME_LIMIT_MINUTES = 5;
 const MAX_TIME_LIMIT_MINUTES = 120;
+const QUIZ_SESSION_KEY_PREFIX = "manabu_quiz_session_v1";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -42,6 +55,65 @@ function buildSessionQuestions(questions: SessionQuestion[], count: number) {
   return shuffleQuestions(questions).slice(0, count);
 }
 
+function getQuizSessionStorageKey(slug: string) {
+  return `${QUIZ_SESSION_KEY_PREFIX}:${slug}`;
+}
+
+function clearStoredQuizSession(slug: string) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(getQuizSessionStorageKey(slug));
+}
+
+function readStoredQuizSession(slug: string, quiz: QuizDetails): PersistedQuizSession | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(getQuizSessionStorageKey(slug));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<PersistedQuizSession>;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.quizId !== quiz.id) return null;
+    if (!Array.isArray(parsed.sessionQuestions) || !parsed.sessionQuestions.length) return null;
+    if (typeof parsed.expiresAt !== "number" || !Number.isFinite(parsed.expiresAt)) return null;
+    if (typeof parsed.questionCount !== "number" || typeof parsed.timeLimitMinutes !== "number") return null;
+
+    const questionMap = new Map(quiz.questions.map((question) => [question.id, question]));
+    const sessionQuestions = parsed.sessionQuestions
+      .map((question) => questionMap.get(question.id))
+      .filter((question): question is SessionQuestion => Boolean(question));
+
+    if (!sessionQuestions.length || sessionQuestions.length !== parsed.sessionQuestions.length) {
+      return null;
+    }
+
+    const answers =
+      parsed.answers && typeof parsed.answers === "object"
+        ? Object.fromEntries(
+            Object.entries(parsed.answers).filter((entry): entry is [string, number] => typeof entry[1] === "number"),
+          )
+        : {};
+
+    return {
+      quizId: parsed.quizId,
+      index: typeof parsed.index === "number" ? parsed.index : 0,
+      answers,
+      questionCount: parsed.questionCount,
+      timeLimitMinutes: parsed.timeLimitMinutes,
+      sessionQuestions,
+      expiresAt: parsed.expiresAt,
+      finished: parsed.finished === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistQuizSession(slug: string, session: PersistedQuizSession) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(getQuizSessionStorageKey(slug), JSON.stringify(session));
+}
+
 export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -51,11 +123,15 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
   const [index, setIndex] = React.useState(0);
   const [answers, setAnswers] = React.useState<AnswerMap>({});
   const [submitting, setSubmitting] = React.useState(false);
+  const [preparingSession, setPreparingSession] = React.useState(false);
   const [result, setResult] = React.useState<QuizAttemptResult | null>(null);
   const [timeLeft, setTimeLeft] = React.useState(0);
   const [questionCount, setQuestionCount] = React.useState(10);
   const [timeLimitMinutes, setTimeLimitMinutes] = React.useState(15);
   const [sessionQuestions, setSessionQuestions] = React.useState<SessionQuestion[]>([]);
+  const [sessionExpiresAt, setSessionExpiresAt] = React.useState<number | null>(null);
+  const submitLockRef = React.useRef(false);
+  const prepareLockRef = React.useRef(false);
 
   React.useEffect(() => {
     let alive = true;
@@ -67,21 +143,32 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
         const data = await getQuiz(slug);
         if (!alive) return;
 
+        const restored = readStoredQuizSession(slug, data);
         const defaultQuestionCount = getDefaultQuestionCount(data.questionCount);
         const defaultTimeLimit = getRecommendedTimeLimit(defaultQuestionCount);
 
         setQuiz(data);
-        setQuestionCount(defaultQuestionCount);
-        setTimeLimitMinutes(defaultTimeLimit);
-        setTimeLeft(defaultTimeLimit * 60);
-        setSessionQuestions([]);
-        setStarted(false);
-        setFinished(false);
-        setIndex(0);
-        setAnswers({});
+        setQuestionCount(restored?.questionCount ?? defaultQuestionCount);
+        setTimeLimitMinutes(restored?.timeLimitMinutes ?? defaultTimeLimit);
+        setSessionQuestions(restored?.sessionQuestions ?? []);
+        setStarted(Boolean(restored));
+        setFinished(restored?.finished ?? false);
+        setIndex(restored ? clamp(restored.index, 0, Math.max(restored.sessionQuestions.length - 1, 0)) : 0);
+        setAnswers(restored?.answers ?? {});
         setResult(null);
+        setSessionExpiresAt(restored?.expiresAt ?? null);
+        setTimeLeft(
+          restored?.expiresAt
+            ? Math.max(0, Math.ceil((restored.expiresAt - Date.now()) / 1000))
+            : defaultTimeLimit * 60,
+        );
+        setPreparingSession(false);
+        setSubmitting(false);
+        prepareLockRef.current = false;
+        submitLockRef.current = false;
       } catch (nextError) {
         if (!alive) return;
+        clearStoredQuizSession(slug);
         setError((nextError as Error).message);
       } finally {
         if (alive) setLoading(false);
@@ -94,10 +181,16 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
   }, [slug]);
 
   React.useEffect(() => {
-    if (!started || finished) return;
-    const timer = setInterval(() => setTimeLeft((value) => Math.max(0, value - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [started, finished]);
+    if (!started || finished || !sessionExpiresAt) return;
+
+    const syncTime = () => {
+      setTimeLeft(Math.max(0, Math.ceil((sessionExpiresAt - Date.now()) / 1000)));
+    };
+
+    syncTime();
+    const timer = window.setInterval(syncTime, 1000);
+    return () => window.clearInterval(timer);
+  }, [finished, sessionExpiresAt, started]);
 
   const activeQuestions = sessionQuestions;
   const maxQuestions = quiz?.questionCount ?? 1;
@@ -109,6 +202,42 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
   const sessionTotal = activeQuestions.length || safeQuestionCount;
   const progress = sessionTotal ? Math.round((answeredCount / sessionTotal) * 100) : 0;
   const current = activeQuestions[index] ?? null;
+  const currentAnswerSelected = answers[index] !== undefined;
+
+  React.useEffect(() => {
+    if (!quiz || !started || !sessionQuestions.length || !sessionExpiresAt) {
+      clearStoredQuizSession(slug);
+      return;
+    }
+
+    if (finished && result) {
+      clearStoredQuizSession(slug);
+      return;
+    }
+
+    persistQuizSession(slug, {
+      quizId: quiz.id,
+      index,
+      answers,
+      questionCount: safeQuestionCount,
+      timeLimitMinutes: safeTimeLimitMinutes,
+      sessionQuestions,
+      expiresAt: sessionExpiresAt,
+      finished,
+    });
+  }, [
+    answers,
+    finished,
+    index,
+    quiz,
+    result,
+    safeQuestionCount,
+    safeTimeLimitMinutes,
+    sessionExpiresAt,
+    sessionQuestions,
+    slug,
+    started,
+  ]);
 
   React.useEffect(() => {
     if (!started || finished || timeLeft > 0) return;
@@ -123,7 +252,13 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
     setResult(null);
     setError(null);
     setSessionQuestions([]);
+    setSessionExpiresAt(null);
     setTimeLeft(safeTimeLimitMinutes * 60);
+    setPreparingSession(false);
+    setSubmitting(false);
+    prepareLockRef.current = false;
+    submitLockRef.current = false;
+    clearStoredQuizSession(slug);
   }
 
   function updateQuestionCount(value: number) {
@@ -135,30 +270,47 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
     setTimeLimitMinutes(clamp(value, MIN_TIME_LIMIT_MINUTES, MAX_TIME_LIMIT_MINUTES));
   }
 
-  function startQuiz() {
-    if (!quiz) return;
+  async function startQuiz() {
+    if (!quiz || preparingSession || prepareLockRef.current) return;
 
-    const nextSessionQuestions = buildSessionQuestions(quiz.questions, safeQuestionCount);
-    if (!nextSessionQuestions.length) {
-      setError("This subject does not have enough questions to build a session right now.");
-      return;
-    }
-
-    setStarted(true);
-    setFinished(false);
-    setIndex(0);
-    setAnswers({});
-    setResult(null);
+    prepareLockRef.current = true;
+    setPreparingSession(true);
     setError(null);
-    setSessionQuestions(nextSessionQuestions);
-    setTimeLeft(safeTimeLimitMinutes * 60);
+
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+
+      const nextSessionQuestions = buildSessionQuestions(quiz.questions, safeQuestionCount);
+      if (!nextSessionQuestions.length) {
+        setError("This subject does not have enough questions to build a session right now.");
+        return;
+      }
+
+      const expiresAt = Date.now() + safeTimeLimitMinutes * 60_000;
+
+      setStarted(true);
+      setFinished(false);
+      setIndex(0);
+      setAnswers({});
+      setResult(null);
+      setError(null);
+      setSessionQuestions(nextSessionQuestions);
+      setSessionExpiresAt(expiresAt);
+      setTimeLeft(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+    } finally {
+      prepareLockRef.current = false;
+      setPreparingSession(false);
+    }
   }
 
   async function handleFinish() {
-    if (!quiz || !activeQuestions.length) return;
+    if (!quiz || !activeQuestions.length || submitting || submitLockRef.current) return;
+
+    submitLockRef.current = true;
     setFinished(true);
     setSubmitting(true);
     setError(null);
+
     try {
       const orderedAnswers = activeQuestions.map((_question, idx) => answers[idx] ?? -1);
       const nextResult = await submitQuizAttempt(quiz.id, {
@@ -166,18 +318,44 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
         questionIds: activeQuestions.map((question) => question.id),
       });
       setResult(nextResult);
+      clearStoredQuizSession(slug);
     } catch (nextError) {
       setError((nextError as Error).message);
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmitCurrentAnswer() {
+    if (!currentAnswerSelected || submitting) return;
+    if (index >= activeQuestions.length - 1) {
+      await handleFinish();
+      return;
+    }
+    setIndex((value) => Math.min(activeQuestions.length - 1, value + 1));
   }
 
   if (loading) {
     return (
       <Card style={{ borderRadius: 28 }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <Spinner size={18} /> Loading quiz...
+        <div style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <Spinner size={18} /> Loading quiz...
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            <SkeletonBlock width="28%" height={28} radius={999} />
+            <SkeletonBlock width="72%" height={44} radius={18} />
+            <SkeletonBlock width="94%" height={14} />
+            <div className="insightGrid">
+              {[0, 1, 2, 3].map((item) => (
+                <Card key={item} style={{ borderRadius: 18, padding: 14 }}>
+                  <SkeletonBlock width="48%" height={12} />
+                  <SkeletonBlock width="60%" height={24} style={{ marginTop: 10 }} />
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
     );
@@ -203,7 +381,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
               "radial-gradient(320px 180px at 0% 0%, rgba(56, 189, 248, 0.18), transparent 70%), linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(280px, 0.85fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <Badge tone={quiz.isSpecial ? "warning" : "info"}>{quiz.title}</Badge>
@@ -327,7 +505,9 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                   </div>
 
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <Button onClick={startQuiz}>Start custom session</Button>
+                    <Button onClick={() => void startQuiz()} disabled={preparingSession}>
+                      {preparingSession ? <Spinner size={16} /> : null} {preparingSession ? "Generating quiz..." : "Start custom session"}
+                    </Button>
                     <Badge tone="success">Bank ready</Badge>
                   </div>
                 </div>
@@ -340,7 +520,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                         {finished ? "Completed" : "In progress"}
                       </div>
                     </div>
-                    {submitting ? <Spinner /> : <Badge tone="success">Live</Badge>}
+                    {submitting || preparingSession ? <Spinner /> : <Badge tone="success">Live</Badge>}
                   </div>
 
                   <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
@@ -363,13 +543,13 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                   </div>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
                     {!finished ? (
-                      <Button variant="ghost" onClick={() => void handleFinish()}>
+                      <Button variant="ghost" onClick={() => void handleFinish()} disabled={submitting}>
                         Finish now
                       </Button>
                     ) : null}
                     {finished ? (
                       <>
-                        <Button variant="ghost" onClick={startQuiz}>
+                        <Button variant="ghost" onClick={() => void startQuiz()} disabled={preparingSession}>
                           Retry same setup
                         </Button>
                         <Button variant="ghost" onClick={resetToSetup}>
@@ -386,10 +566,9 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
       </MotionIn>
 
       {error ? (
-        <Card style={{ borderRadius: 22 }}>
-          <div style={{ fontWeight: 900 }}>Quiz error</div>
-          <div style={{ color: "var(--muted)", marginTop: 8 }}>{error}</div>
-        </Card>
+        <Alert tone="danger" title="Quiz error">
+          {error}
+        </Alert>
       ) : null}
 
       {!started ? (
@@ -414,6 +593,31 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
           </div>
 
           <div style={{ marginTop: 14, fontSize: 18, fontWeight: 800, lineHeight: 1.45 }}>{current.prompt}</div>
+          <div
+            style={{
+              marginTop: 14,
+              height: 10,
+              borderRadius: 999,
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.08)",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.max(((index + 1) / activeQuestions.length) * 100, 8)}%`,
+                height: "100%",
+                borderRadius: 999,
+                background: "linear-gradient(90deg, var(--primary), var(--primary2))",
+                boxShadow: "0 0 18px rgba(56, 189, 248, 0.2)",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>Choose one answer before you continue.</div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>
+              Timer: {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
+            </div>
+          </div>
           <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
             {current.options.map((option, optionIndex) => {
               const selected = answers[index] === optionIndex;
@@ -434,6 +638,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                     cursor: "pointer",
                     fontWeight: 800,
                   }}
+                  aria-pressed={selected}
                 >
                   {String.fromCharCode(65 + optionIndex)}. {option}
                 </button>
@@ -445,12 +650,8 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
             <Button variant="ghost" onClick={() => setIndex((value) => Math.max(0, value - 1))} disabled={index === 0}>
               Prev
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setIndex((value) => Math.min(activeQuestions.length - 1, value + 1))}
-              disabled={index >= activeQuestions.length - 1}
-            >
-              Next
+            <Button onClick={() => void handleSubmitCurrentAnswer()} disabled={!currentAnswerSelected || submitting}>
+              {index >= activeQuestions.length - 1 ? "Finish quiz" : "Submit answer"}
             </Button>
           </div>
         </Card>
@@ -465,11 +666,26 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
             </div>
           ) : result ? (
             <>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-                <Badge tone="info">
-                  Score: {result.score}% ({result.correctAnswers}/{result.totalQuestions})
-                </Badge>
-                <Badge tone="success">XP earned: {result.xpEarned}</Badge>
+              <div className="insightGrid" style={{ marginTop: 14 }}>
+                {[
+                  { label: "Score", value: `${result.score}%` },
+                  { label: "Correct answers", value: `${result.correctAnswers}/${result.totalQuestions}` },
+                  { label: "Accuracy percentage", value: `${result.score}%` },
+                  { label: "XP earned", value: String(result.xpEarned) },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      padding: 14,
+                      borderRadius: 18,
+                      border: "1px solid var(--border)",
+                      background: "rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{item.label}</div>
+                    <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 24, marginTop: 8 }}>{item.value}</div>
+                  </div>
+                ))}
               </div>
               <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
                 {result.review.map((item) => (
@@ -498,8 +714,19 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
               </div>
             </>
           ) : (
-            <div style={{ marginTop: 12, color: "var(--muted)" }}>
-              The quiz finished, but the final result could not be retrieved.
+            <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+              <Alert tone="warning" title="Result unavailable">
+                The quiz was completed, but saving the result did not finish successfully. You can retry the submission
+                without losing your current attempt.
+              </Alert>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Button onClick={() => void handleFinish()} disabled={submitting}>
+                  Retry submission
+                </Button>
+                <Button variant="ghost" onClick={resetToSetup}>
+                  Change setup
+                </Button>
+              </div>
             </div>
           )}
         </Card>

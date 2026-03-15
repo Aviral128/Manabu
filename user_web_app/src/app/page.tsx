@@ -10,10 +10,9 @@ import { ButtonLink } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 
 const highlights = [
-  { title: "Adaptive quizzes", body: "Difficulty shifts with your recent answers and confidence." },
-  { title: "AI tutor explanations", body: "Miss a concept and get targeted remediation instantly." },
-  { title: "Gamified consistency", body: "XP, streaks, and rewards keep momentum visible every day." },
-  { title: "Social accountability", body: "Friends, battles, and leaderboards make practice stick." },
+  { title: "AI quiz generation", body: "Subject banks and practice sessions are shaped into fast, usable quiz experiences." },
+  { title: "Gamified learning", body: "XP, streaks, levels, and momentum cards make daily study feel tangible." },
+  { title: "Progress analytics", body: "Accuracy, mastery, and history give each learner a clear feedback loop." },
 ];
 
 const launchMetrics = [
@@ -31,8 +30,8 @@ const flowSteps = [
 export default function LandingPage(): JSX.Element {
   const { state } = useAuth();
   const isAdmin = state.status === "auth" && state.role === "admin";
-  const dashboardHref = state.status === "auth" ? "/app/dashboard" : "/login?next=/app/dashboard";
-  const mvaSpecialHref = state.status === "auth" ? "/app/quiz/mva-special" : "/login?next=/app/quiz/mva-special";
+  const dashboardHref = state.status === "anon" ? "/login?next=/app/dashboard" : "/app/dashboard";
+  const mvaSpecialHref = state.status === "anon" ? "/login?next=/app/quiz/mva-special" : "/app/quiz/mva-special";
 
   return (
     <main className="container">
@@ -108,9 +107,12 @@ export default function LandingPage(): JSX.Element {
                     </div>
 
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      <ButtonLink href="/login">Enter MANABU</ButtonLink>
+                      <ButtonLink href="/login">Start Learning</ButtonLink>
+                      <ButtonLink href={mvaSpecialHref} variant="ghost">
+                        Take Quiz
+                      </ButtonLink>
                       <ButtonLink href={dashboardHref} variant="ghost">
-                        Open learner app
+                        Go to Dashboard
                       </ButtonLink>
                       {isAdmin ? (
                         <ButtonLink href="/dev" variant="ghost">

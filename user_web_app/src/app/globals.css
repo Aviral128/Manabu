@@ -238,6 +238,28 @@ img {
   }
 }
 
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -20% 0;
+  }
+}
+
+.skeletonBlock {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(148, 163, 184, 0.14) 0%,
+      rgba(255, 255, 255, 0.18) 45%,
+      rgba(148, 163, 184, 0.12) 100%
+    );
+  background-size: 220% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
 @media (max-width: 1180px) {
   .shellRoot,
   .devLayout {

@@ -49,17 +49,37 @@ async function handleProxy(request: NextRequest, ctx: { params: { service: strin
     body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
     cache: "no-store",
   };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12_000);
 
-  const response = await fetch(upstreamUrl.toString(), init);
-  const body = await response.arrayBuffer();
+  try {
+    const response = await fetch(upstreamUrl.toString(), {
+      ...init,
+      signal: controller.signal,
+    });
+    const body = await response.arrayBuffer();
 
-  const out = new NextResponse(body, { status: response.status });
-  response.headers.forEach((value, key) => {
-    if (key.toLowerCase() === "transfer-encoding") return;
-    out.headers.set(key, value);
-  });
-  out.headers.set("x-manabu-proxy", "user_web_app");
-  return out;
+    const out = new NextResponse(body, { status: response.status });
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() === "transfer-encoding") return;
+      out.headers.set(key, value);
+    });
+    out.headers.set("x-manabu-proxy", "user_web_app");
+    return out;
+  } catch (error) {
+    const isAbort = error instanceof Error && error.name === "AbortError";
+    return NextResponse.json(
+      {
+        code: "UPSTREAM_UNAVAILABLE",
+        message: isAbort
+          ? "The upstream service took too long to respond."
+          : "The upstream service is temporarily unavailable.",
+      },
+      { status: 503 },
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function GET(request: NextRequest, ctx: any) {

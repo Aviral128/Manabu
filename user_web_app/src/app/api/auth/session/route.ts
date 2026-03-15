@@ -18,11 +18,14 @@ export async function GET(request: Request) {
   }
 
   let upstream: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8_000);
   try {
     upstream = await fetch(`${getBackendApiBaseUrl()}/api/auth/me`, {
       method: "GET",
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      signal: controller.signal,
     });
   } catch {
     return NextResponse.json({
@@ -31,6 +34,8 @@ export async function GET(request: Request) {
       role: cachedUser?.role,
       degraded: true,
     });
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!upstream.ok) {

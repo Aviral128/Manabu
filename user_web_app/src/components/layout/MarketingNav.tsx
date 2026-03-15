@@ -1,12 +1,14 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import React from "react";
 
 import { useAuth } from "../../auth/AuthProvider";
 import { Button, ButtonLink } from "../ui/Button";
+import { Spinner } from "../ui/Spinner";
 
 export function MarketingNav(): JSX.Element {
   const { theme, systemTheme, setTheme } = useTheme();
@@ -19,9 +21,10 @@ export function MarketingNav(): JSX.Element {
 
   const resolved = theme === "system" ? systemTheme : theme;
   const isDark = mounted && resolved === "dark";
+  const isLoading = state.status === "loading";
   const isAdmin = state.status === "auth" && state.role === "admin";
-  const dashboardHref = state.status === "auth" ? "/app/dashboard" : "/login?next=/app/dashboard";
-  const mvaSpecialHref = state.status === "auth" ? "/app/quiz/mva-special" : "/login?next=/app/quiz/mva-special";
+  const dashboardHref = state.status === "anon" ? "/login?next=/app/dashboard" : "/app/dashboard";
+  const mvaSpecialHref = state.status === "anon" ? "/login?next=/app/quiz/mva-special" : "/app/quiz/mva-special";
 
   return (
     <header
@@ -49,7 +52,7 @@ export function MarketingNav(): JSX.Element {
             padding: 8,
           }}
         >
-          <img src="/brand/manabu-wordmark.svg" alt="MANABU" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          <Image src="/brand/manabu-wordmark.svg" alt="MANABU" width={36} height={36} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         </span>
         <div>
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, letterSpacing: 0.3 }}>MANABU</div>
@@ -75,7 +78,11 @@ export function MarketingNav(): JSX.Element {
         <Button variant="ghost" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle theme">
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </Button>
-        {state.status === "auth" ? (
+        {isLoading ? (
+          <Button variant="ghost" disabled>
+            <Spinner size={14} /> Checking session
+          </Button>
+        ) : state.status === "auth" ? (
           <ButtonLink href="/app/dashboard">Open app</ButtonLink>
         ) : (
           <>

@@ -2,26 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 
 import * as quizService from "../services/quizService";
-
-const questionSchema = z.object({
-  prompt: z.string().min(5),
-  options: z.array(z.string().min(1)).min(2),
-  answerIndex: z.number().int().nonnegative(),
-  explanation: z.string().optional(),
-  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
-});
-
-const quizSchema = z.object({
-  title: z.string().min(3),
-  slug: z.string().min(3),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  difficulty: z.enum(["easy", "medium", "hard", "mixed"]),
-  estimatedMinutes: z.number().int().positive().max(180).optional(),
-  isSpecial: z.boolean().optional(),
-  tags: z.array(z.string().min(1)).optional(),
-  questions: z.array(questionSchema).min(1),
-});
+import { adminQuizSchema } from "../validation/quiz";
 
 const attemptSchema = z.object({
   answers: z.array(z.number().int().min(-1)).min(1),
@@ -66,13 +47,13 @@ export async function listAdminQuizzes(_request: Request, response: Response) {
 }
 
 export async function createQuiz(request: Request, response: Response) {
-  const input = quizSchema.parse(request.body);
+  const input = adminQuizSchema.parse(request.body);
   const quiz = await quizService.createQuiz(input);
   return response.status(201).json(quiz);
 }
 
 export async function updateQuiz(request: Request, response: Response) {
-  const input = quizSchema.parse(request.body);
+  const input = adminQuizSchema.parse(request.body);
   const quiz = await quizService.updateQuiz(routeParam(request.params.id), input);
   return response.json(quiz);
 }

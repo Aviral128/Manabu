@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 
 import { MarketingNav } from "../../components/layout/MarketingNav";
+import { Alert } from "../../components/ui/Alert";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
@@ -15,6 +16,7 @@ export default function ResetPasswordPage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token")?.trim() ?? "";
+  const redirectTimerRef = React.useRef<number | null>(null);
   const [email, setEmail] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -22,9 +24,18 @@ export default function ResetPasswordPage(): JSX.Element {
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
+
   async function onRequestReset(event: React.FormEvent) {
     event.preventDefault();
-    if (!email.includes("@")) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail.includes("@")) {
       setError("Enter a valid email address.");
       return;
     }
@@ -34,7 +45,7 @@ export default function ResetPasswordPage(): JSX.Element {
     setSuccess(null);
 
     try {
-      const response = await requestPasswordReset(email);
+      const response = await requestPasswordReset(normalizedEmail);
       setSuccess(response.message || "Check your inbox for a reset link.");
     } catch (err) {
       setError((err as Error).message);
@@ -65,7 +76,10 @@ export default function ResetPasswordPage(): JSX.Element {
     try {
       const response = await resetPassword({ token, newPassword });
       setSuccess(response.message || "Password updated. Redirecting to login...");
-      window.setTimeout(() => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+      redirectTimerRef.current = window.setTimeout(() => {
         router.push("/login");
       }, 1200);
     } catch (err) {
@@ -109,11 +123,19 @@ export default function ResetPasswordPage(): JSX.Element {
                   />
                 </label>
 
-                {error ? <div style={{ color: "var(--danger)", fontSize: 13 }}>{error}</div> : null}
-                {success ? <div style={{ color: "var(--primary)", fontSize: 13, fontWeight: 700 }}>{success}</div> : null}
+                {error ? (
+                  <Alert tone="danger" title="Reset email issue">
+                    {error}
+                  </Alert>
+                ) : null}
+                {success ? (
+                  <Alert tone="success" title="Check your inbox">
+                    {success}
+                  </Alert>
+                ) : null}
 
                 <Button type="submit" disabled={busy} style={{ padding: "14px 16px", borderRadius: 18 }}>
-                  {busy ? <Spinner size={16} /> : null} Send reset email
+                  {busy ? <Spinner size={16} /> : null} {busy ? "Sending reset email..." : "Send reset email"}
                 </Button>
               </form>
             ) : (
@@ -141,11 +163,19 @@ export default function ResetPasswordPage(): JSX.Element {
                   />
                 </label>
 
-                {error ? <div style={{ color: "var(--danger)", fontSize: 13 }}>{error}</div> : null}
-                {success ? <div style={{ color: "var(--primary)", fontSize: 13, fontWeight: 700 }}>{success}</div> : null}
+                {error ? (
+                  <Alert tone="danger" title="Password reset issue">
+                    {error}
+                  </Alert>
+                ) : null}
+                {success ? (
+                  <Alert tone="success" title="Password updated">
+                    {success}
+                  </Alert>
+                ) : null}
 
                 <Button type="submit" disabled={busy} style={{ padding: "14px 16px", borderRadius: 18 }}>
-                  {busy ? <Spinner size={16} /> : null} Reset password
+                  {busy ? <Spinner size={16} /> : null} {busy ? "Resetting password..." : "Reset password"}
                 </Button>
               </form>
             )}

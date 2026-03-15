@@ -11,6 +11,11 @@ export type UserProfile = {
     badges: string[];
     streak: number;
   } | null;
+  quizStats?: {
+    totalQuizzesTaken: number;
+    averageAccuracy: number;
+    bestScore: number;
+  };
   recentAttempts?: Array<{
     attemptId: string;
     quizId: string;
@@ -23,18 +28,37 @@ export type UserProfile = {
 };
 
 async function requestSession(): Promise<any> {
-  const response = await fetch("/api/auth/session", { cache: "no-store" });
-  const payload = (await response.json().catch(() => ({}))) as any;
-  if (!response.ok) {
-    throw new Error(payload?.message ?? "Failed to load session.");
+  let response: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12_000);
+  try {
+    response = await fetch("/api/auth/session", { cache: "no-store", signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Loading your session took too long. Please refresh and try again.");
+    }
+    throw new Error("Failed to load session. Please refresh and try again.");
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return payload;
+
+  const raw = await response.text();
+  let parsed: any = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = {};
+  }
+  if (!response.ok) {
+    throw new Error(parsed?.message ?? "Failed to load session.");
+  }
+  return parsed;
 }
 
 export async function fetchUserProfile(_userId: string): Promise<UserProfile> {
   const payload = await requestSession();
   if (!payload?.authenticated || !payload?.profile) {
-    throw new Error("No active session found.");
+    throw new Error("No active session found. Please log in again.");
   }
   return payload.profile as UserProfile;
 }

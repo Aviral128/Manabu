@@ -1,0 +1,9 @@
+{
+  "appId": "com.manabu.app",
+  "appName": "MANABU",
+  "webDir": "www",
+  "server": {
+    "url": "https://manabu-mu.vercel.app",
+    "cleartext": false
+  }
+}

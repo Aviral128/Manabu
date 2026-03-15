@@ -5,6 +5,7 @@ import React from "react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { PlainLanguagePanel } from "../../../components/common/PlainLanguagePanel";
 import { MotionIn } from "../../../components/motion/MotionIn";
+import { Alert } from "../../../components/ui/Alert";
 import { Badge } from "../../../components/ui/Badge";
 import { Card } from "../../../components/ui/Card";
 import { Spinner } from "../../../components/ui/Spinner";
@@ -12,7 +13,7 @@ import { fetchKnowledgeGraph, fetchLearningPlan } from "../../../services/learni
 
 export default function LearningPage(): JSX.Element {
   const { state } = useAuth();
-  const userId = state.status === "auth" ? state.userId : "usr_001";
+  const userId = state.status === "auth" ? state.userId : null;
 
   const [busy, setBusy] = React.useState(true);
   const [plan, setPlan] = React.useState<any | null>(null);
@@ -22,6 +23,13 @@ export default function LearningPage(): JSX.Element {
   React.useEffect(() => {
     let alive = true;
     (async () => {
+      if (!userId) {
+        if (alive) {
+          setBusy(state.status === "loading");
+        }
+        return;
+      }
+
       setBusy(true);
       setError(null);
       try {
@@ -39,7 +47,25 @@ export default function LearningPage(): JSX.Element {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [state.status, userId]);
+
+  if (!userId && state.status === "loading") {
+    return (
+      <Card style={{ borderRadius: 28 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Spinner size={18} /> Loading learning workspace...
+        </div>
+      </Card>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <Alert tone="warning" title="Session expired">
+        Your learning session is no longer active. Please sign in again to continue.
+      </Alert>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -52,7 +78,13 @@ export default function LearningPage(): JSX.Element {
             </div>
             {busy ? <Spinner /> : <Badge tone="success">Live</Badge>}
           </div>
-          {error ? <div style={{ marginTop: 10, color: "var(--danger)" }}>{error}</div> : null}
+          {error ? (
+            <div style={{ marginTop: 10 }}>
+              <Alert tone="danger" title="Learning data issue">
+                {error}
+              </Alert>
+            </div>
+          ) : null}
         </Card>
       </MotionIn>
 

@@ -4,6 +4,7 @@ import React from "react";
 
 import { useAuth } from "../../../auth/AuthProvider";
 import { MotionIn } from "../../../components/motion/MotionIn";
+import { Alert } from "../../../components/ui/Alert";
 import { Badge } from "../../../components/ui/Badge";
 import { Card } from "../../../components/ui/Card";
 import { Spinner } from "../../../components/ui/Spinner";
@@ -11,7 +12,7 @@ import { fetchRecommendations } from "../../../services/recommendations";
 
 export default function RecommendationsPage(): JSX.Element {
   const { state } = useAuth();
-  const userId = state.status === "auth" ? state.userId : "usr_001";
+  const userId = state.status === "auth" ? state.userId : null;
 
   const [busy, setBusy] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -20,6 +21,13 @@ export default function RecommendationsPage(): JSX.Element {
   React.useEffect(() => {
     let alive = true;
     (async () => {
+      if (!userId) {
+        if (alive) {
+          setBusy(state.status === "loading");
+        }
+        return;
+      }
+
       setBusy(true);
       setError(null);
       try {
@@ -36,7 +44,25 @@ export default function RecommendationsPage(): JSX.Element {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [state.status, userId]);
+
+  if (!userId && state.status === "loading") {
+    return (
+      <Card style={{ borderRadius: 28 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Spinner size={18} /> Loading recommendations...
+        </div>
+      </Card>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <Alert tone="warning" title="Session expired">
+        Your recommendations session is no longer active. Please sign in again to continue.
+      </Alert>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -49,7 +75,13 @@ export default function RecommendationsPage(): JSX.Element {
             </div>
             {busy ? <Spinner /> : <Badge tone="success">Live</Badge>}
           </div>
-          {error ? <div style={{ marginTop: 10, color: "var(--danger)" }}>{error}</div> : null}
+          {error ? (
+            <div style={{ marginTop: 10 }}>
+              <Alert tone="danger" title="Recommendation issue">
+                {error}
+              </Alert>
+            </div>
+          ) : null}
         </Card>
       </MotionIn>
 
@@ -75,4 +107,3 @@ export default function RecommendationsPage(): JSX.Element {
     </div>
   );
 }
-

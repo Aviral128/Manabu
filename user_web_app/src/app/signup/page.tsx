@@ -6,6 +6,7 @@ import React from "react";
 
 import { normalizeNextTarget } from "../../auth/shared";
 import { MarketingNav } from "../../components/layout/MarketingNav";
+import { Alert } from "../../components/ui/Alert";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
@@ -16,12 +17,14 @@ export default function SignupPage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signup, state, isReady } = useAuth();
+  const sessionChecking = !isReady || state.status === "loading";
   const [displayName, setDisplayName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
+  const [requiresVerification, setRequiresVerification] = React.useState(true);
 
   React.useEffect(() => {
     if (!isReady) return;
@@ -32,11 +35,12 @@ export default function SignupPage(): JSX.Element {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const normalizedEmail = email.trim();
     if (displayName.trim().length < 2) {
       setError("Display name must be at least 2 characters long.");
       return;
     }
-    if (!email.includes("@")) {
+    if (!normalizedEmail.includes("@")) {
       setError("Enter a valid email address.");
       return;
     }
@@ -47,9 +51,11 @@ export default function SignupPage(): JSX.Element {
     setBusy(true);
     setError(null);
     setSuccess(null);
+    setRequiresVerification(true);
     try {
-      const result = await signup(email, password, displayName);
+      const result = await signup(normalizedEmail, password, displayName.trim());
       setSuccess(result.message || "Check your email to verify your account.");
+      setRequiresVerification(result.requiresVerification !== false);
       setPassword("");
     } catch (err) {
       setError((err as Error).message);
@@ -63,12 +69,36 @@ export default function SignupPage(): JSX.Element {
       <MarketingNav />
       <div style={{ marginTop: 18, display: "grid", placeItems: "center" }}>
         <Card style={{ width: "min(560px, 100%)", borderRadius: 28 }}>
-          <h1 style={{ fontFamily: "var(--font-heading)", fontWeight: 900, margin: 0 }}>Create your account</h1>
-          <p style={{ color: "var(--muted)", marginTop: 8 }}>
-            Create your account, then verify your email to unlock password and magic-link login.
-          </p>
-          {!isReady ? <div style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>Checking your saved session...</div> : null}
-          <form onSubmit={onSubmit} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+          {state.status === "auth" ? (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28 }}>You already have a session</div>
+              <Alert tone="info" title="Redirecting">
+                Your account is already signed in, so we are taking you straight back to the dashboard.
+              </Alert>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", color: "var(--muted)" }}>
+                <Spinner size={18} /> Redirecting to MANABU...
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 style={{ fontFamily: "var(--font-heading)", fontWeight: 900, margin: 0 }}>Create your account</h1>
+              <p style={{ color: "var(--muted)", marginTop: 8 }}>
+                Create your account, then verify your email to unlock password and magic-link login.
+              </p>
+              {sessionChecking ? (
+                <Card style={{ marginTop: 14, borderRadius: 22, padding: 18, background: "rgba(255,255,255,0.04)" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <Spinner size={18} />
+                    <div>
+                      <div style={{ fontWeight: 900 }}>Checking your saved session</div>
+                      <div style={{ color: "var(--muted)", marginTop: 4, fontSize: 13 }}>
+                        We are confirming whether you are already signed in before showing signup actions.
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+              <form onSubmit={onSubmit} style={{ marginTop: 14, display: "grid", gap: 10 }}>
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ color: "var(--muted)", fontSize: 12 }}>Display name</span>
               <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Enter your full name" required />
@@ -89,11 +119,19 @@ export default function SignupPage(): JSX.Element {
               />
             </label>
 
-            {error ? <div style={{ color: "var(--danger)", fontSize: 13 }}>{error}</div> : null}
-            {success ? <div style={{ color: "var(--primary)", fontSize: 13, fontWeight: 700 }}>{success}</div> : null}
+            {error ? (
+              <Alert tone="danger" title="Signup issue">
+                {error}
+              </Alert>
+            ) : null}
+            {success ? (
+              <Alert tone="success" title="Account created">
+                {success}
+              </Alert>
+            ) : null}
 
             <Button type="submit" variant="primary" disabled={busy}>
-              {busy ? <Spinner size={16} /> : null} Sign up
+              {busy ? <Spinner size={16} /> : null} {busy ? "Signing up..." : "Sign up"}
             </Button>
 
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
@@ -104,10 +142,29 @@ export default function SignupPage(): JSX.Element {
             </div>
             {success ? (
               <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                Check your inbox, click the verification link, then return to <Link href="/login" style={{ textDecoration: "underline" }}>login</Link>.
+                {requiresVerification ? (
+                  <>
+                    Check your inbox, click the verification link, then return to{" "}
+                    <Link href="/login" style={{ textDecoration: "underline" }}>
+                      login
+                    </Link>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Your admin account is ready. Go straight to{" "}
+                    <Link href="/login" style={{ textDecoration: "underline" }}>
+                      login
+                    </Link>
+                    , or request a magic link.
+                  </>
+                )}
               </div>
             ) : null}
-          </form>
+              </form>
+              )}
+            </>
+          )}
         </Card>
       </div>
     </main>

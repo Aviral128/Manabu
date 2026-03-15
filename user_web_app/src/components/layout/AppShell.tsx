@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, Flame, LayoutDashboard, Moon, Sun, Swords, Target, UserCircle2, Wrench } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React from "react";
@@ -10,6 +11,7 @@ import { useAuth } from "../../auth/AuthProvider";
 import { clsx } from "../../utils/clsx";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { Spinner } from "../ui/Spinner";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
 
@@ -34,12 +36,38 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
     setMounted(true);
   }, []);
 
+  React.useEffect(() => {
+    if (state.status !== "anon") return;
+    const next = pathname ? `${pathname}` : "/app/dashboard";
+    router.replace(`/login?next=${encodeURIComponent(next)}`);
+  }, [pathname, router, state.status]);
+
   const resolved = theme === "system" ? systemTheme : theme;
   const isDark = mounted && resolved === "dark";
   const navItems = React.useMemo(
     () => (state.status === "auth" && state.role === "admin" ? [...nav, { href: "/dev", label: "Developer", icon: <Wrench size={18} /> }] : nav),
     [state]
   );
+  const authAction =
+    state.status === "loading" ? (
+      <Button variant="ghost" disabled>
+        <Spinner size={14} /> Checking session
+      </Button>
+    ) : state.status === "auth" ? (
+      <Button
+        variant="ghost"
+        onClick={async () => {
+          await logout();
+          router.push("/");
+        }}
+      >
+        Logout
+      </Button>
+    ) : (
+      <Button variant="ghost" onClick={() => router.push("/login")}>
+        Login
+      </Button>
+    );
 
   return (
     <div className="shellRoot">
@@ -71,12 +99,12 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
                   height: 56,
                   borderRadius: 16,
                   background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(187, 247, 208, 0.86))",
-                  display: "grid",
-                  placeItems: "center",
-                  padding: 8,
-                }}
-              >
-                <img src="/brand/manabu-wordmark.svg" alt="MANABU" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                display: "grid",
+                placeItems: "center",
+                padding: 8,
+              }}
+            >
+                <Image src="/brand/manabu-wordmark.svg" alt="MANABU" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
               </span>
               <div>
                 <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, letterSpacing: 0.3 }}>MANABU</div>
@@ -173,21 +201,7 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
             <Button variant="ghost" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle theme">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
-            {state.status === "auth" ? (
-              <Button
-                variant="ghost"
-                onClick={async () => {
-                  await logout();
-                  router.push("/");
-                }}
-              >
-                Logout
-              </Button>
-            ) : (
-              <Button variant="ghost" onClick={() => router.push("/login")}>
-                Login
-              </Button>
-            )}
+            {authAction}
           </div>
         </div>
       </aside>

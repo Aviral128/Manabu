@@ -1,0 +1,19 @@
+{
+  "name": "manabu-mobile-capacitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor Android wrapper for the deployed MANABU web app",
+  "scripts": {
+    "cap:init": "npx cap init MANABU com.manabu.app --web-dir=www",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "android:build:release": "node scripts/build-release.mjs",
+    "assets:generate": "node scripts/generate-assets.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}

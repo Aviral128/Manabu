@@ -6,6 +6,7 @@ import React from "react";
 import { MarketingNav } from "../../../components/layout/MarketingNav";
 import { Card } from "../../../components/ui/Card";
 import { Spinner } from "../../../components/ui/Spinner";
+import { Alert } from "../../../components/ui/Alert";
 import { verifyEmail, verifyMagicLink } from "../../../services/auth";
 
 export default function VerifyMagicPage(): JSX.Element {
@@ -20,6 +21,7 @@ export default function VerifyMagicPage(): JSX.Element {
 
   React.useEffect(() => {
     let active = true;
+    let redirectTimer: number | undefined;
 
     (async () => {
       if (!token) {
@@ -36,7 +38,7 @@ export default function VerifyMagicPage(): JSX.Element {
           if (!active) return;
           setStatus("success");
           setMessage(result.message || "Email verified successfully. Redirecting to login...");
-          window.setTimeout(() => {
+          redirectTimer = window.setTimeout(() => {
             router.replace("/login?verified=1");
           }, 900);
           return;
@@ -49,7 +51,7 @@ export default function VerifyMagicPage(): JSX.Element {
         window.localStorage.setItem("manabu_user", JSON.stringify(result.user));
         setStatus("success");
         setMessage("Login successful. Redirecting to your dashboard...");
-        window.setTimeout(() => {
+        redirectTimer = window.setTimeout(() => {
           router.replace("/app/dashboard");
         }, 700);
       } catch (error) {
@@ -61,6 +63,9 @@ export default function VerifyMagicPage(): JSX.Element {
 
     return () => {
       active = false;
+      if (redirectTimer) {
+        window.clearTimeout(redirectTimer);
+      }
     };
   }, [mode, router, token]);
 
@@ -81,14 +86,21 @@ export default function VerifyMagicPage(): JSX.Element {
                   background: "linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(34, 197, 94, 0.2))",
                 }}
               >
-                <Spinner size={28} />
+                {status === "loading" ? <Spinner size={28} /> : <div style={{ fontSize: 28 }}>{status === "success" ? "✓" : "!"}</div>}
               </div>
             </div>
             <div>
               <h1 style={{ fontFamily: "var(--font-heading)", margin: 0 }}>
                 {mode === "verify-email" ? "Verifying your email" : "Verifying your login"}
               </h1>
-              <p style={{ color: status === "error" ? "var(--danger)" : "var(--muted)", marginTop: 10 }}>{message}</p>
+              <div style={{ marginTop: 14 }}>
+                <Alert
+                  tone={status === "error" ? "danger" : status === "success" ? "success" : "info"}
+                  title={status === "error" ? "Verification issue" : status === "success" ? "Success" : "Working"}
+                >
+                  {message}
+                </Alert>
+              </div>
             </div>
           </div>
         </Card>

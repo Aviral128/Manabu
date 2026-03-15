@@ -2,10 +2,12 @@
 import React from "react";
 
 import { MotionIn } from "../../../components/motion/MotionIn";
+import { Alert } from "../../../components/ui/Alert";
 import { Badge } from "../../../components/ui/Badge";
 import { Button, ButtonLink } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import { Spinner } from "../../../components/ui/Spinner";
+import { SkeletonBlock } from "../../../components/ui/SkeletonBlock";
 import { listQuizzes, type QuizSummary } from "../../../services/quiz";
 
 export default function QuizHubPage(): JSX.Element {
@@ -49,7 +51,7 @@ export default function QuizHubPage(): JSX.Element {
               "radial-gradient(320px 180px at 0% 0%, rgba(56, 189, 248, 0.18), transparent 70%), linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(260px, 0.85fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             <div style={{ minWidth: 0 }}>
               <Badge tone="info">Quiz arena</Badge>
               <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 34, marginTop: 12 }}>
@@ -111,17 +113,44 @@ export default function QuizHubPage(): JSX.Element {
       </MotionIn>
 
       {error ? (
-        <Card style={{ borderRadius: 24 }}>
-          <div style={{ fontWeight: 900 }}>Quiz catalog unavailable</div>
-          <div style={{ color: "var(--muted)", marginTop: 8 }}>{error}</div>
-        </Card>
+        <Alert tone="danger" title="Quiz catalog unavailable">
+          {error}
+        </Alert>
       ) : null}
 
       {loading ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+          {[0, 1, 2].map((item) => (
+            <Card key={item} style={{ borderRadius: 24, padding: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <SkeletonBlock width="46%" height={28} radius={999} />
+                <SkeletonBlock width="28%" height={28} radius={999} />
+              </div>
+              <SkeletonBlock width="92%" height={14} style={{ marginTop: 14 }} />
+              <SkeletonBlock width="78%" height={14} style={{ marginTop: 8 }} />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                {[0, 1, 2].map((badge) => (
+                  <SkeletonBlock key={badge} width={78} height={28} radius={999} />
+                ))}
+              </div>
+              <SkeletonBlock width="88%" height={12} style={{ marginTop: 14 }} />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                <SkeletonBlock width={154} height={42} radius={16} />
+                <SkeletonBlock width={92} height={32} radius={999} />
+              </div>
+            </Card>
+          ))}
+          <Card style={{ borderRadius: 24 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <Spinner size={16} /> Loading quiz catalog...
+            </div>
+          </Card>
+        </div>
+      ) : !quizzes.length ? (
         <Card style={{ borderRadius: 24 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <Spinner size={16} /> Loading quizzes...
-          </div>
+          <Alert tone="warning" title="No quizzes available">
+            The quiz catalog is empty right now. Please refresh in a moment or check the backend quiz sync.
+          </Alert>
         </Card>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>

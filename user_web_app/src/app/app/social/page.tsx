@@ -4,6 +4,7 @@ import React from "react";
 
 import { useAuth } from "../../../auth/AuthProvider";
 import { MotionIn } from "../../../components/motion/MotionIn";
+import { Alert } from "../../../components/ui/Alert";
 import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
@@ -13,12 +14,16 @@ import { fetchFriends, fetchGlobalLeaderboard } from "../../../services/social";
 
 type Post = { id: string; author: string; text: string; ts: string };
 
-const POSTS_KEY = "manabu_social_posts_v1";
+const POSTS_KEY_PREFIX = "manabu_social_posts_v1";
 
-function loadPosts(): Post[] {
+function getPostsKey(userId: string) {
+  return `${POSTS_KEY_PREFIX}:${userId}`;
+}
+
+function loadPosts(userId: string): Post[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(POSTS_KEY);
+    const raw = localStorage.getItem(getPostsKey(userId));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Post[];
     return Array.isArray(parsed) ? parsed : [];
@@ -27,13 +32,13 @@ function loadPosts(): Post[] {
   }
 }
 
-function savePosts(posts: Post[]) {
-  localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+function savePosts(userId: string, posts: Post[]) {
+  localStorage.setItem(getPostsKey(userId), JSON.stringify(posts));
 }
 
 export default function SocialPage(): JSX.Element {
   const { state } = useAuth();
-  const userId = state.status === "auth" ? state.userId : "usr_001";
+  const userId = state.status === "auth" ? state.userId : null;
 
   const [busy, setBusy] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -44,17 +49,25 @@ export default function SocialPage(): JSX.Element {
   const [text, setText] = React.useState("");
 
   React.useEffect(() => {
-    setPosts(loadPosts());
-  }, []);
+    if (!userId) return;
+    setPosts(loadPosts(userId));
+  }, [userId]);
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    savePosts(posts);
-  }, [posts]);
+    if (typeof window === "undefined" || !userId) return;
+    savePosts(userId, posts);
+  }, [posts, userId]);
 
   React.useEffect(() => {
     let alive = true;
     (async () => {
+      if (!userId) {
+        if (alive) {
+          setBusy(state.status === "loading");
+        }
+        return;
+      }
+
       setBusy(true);
       setError(null);
       try {
@@ -72,7 +85,25 @@ export default function SocialPage(): JSX.Element {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [state.status, userId]);
+
+  if (!userId && state.status === "loading") {
+    return (
+      <Card style={{ borderRadius: 28 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Spinner size={18} /> Loading social space...
+        </div>
+      </Card>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <Alert tone="warning" title="Session expired">
+        Your social session is no longer active. Please sign in again to continue.
+      </Alert>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -88,7 +119,13 @@ export default function SocialPage(): JSX.Element {
               <Badge tone="neutral">social-service</Badge>
             </div>
           </div>
-          {error ? <div style={{ marginTop: 10, color: "var(--danger)" }}>{error}</div> : null}
+          {error ? (
+            <div style={{ marginTop: 10 }}>
+              <Alert tone="danger" title="Social data issue">
+                {error}
+              </Alert>
+            </div>
+          ) : null}
         </Card>
       </MotionIn>
 
@@ -164,4 +201,3 @@ export default function SocialPage(): JSX.Element {
     </div>
   );
 }
-

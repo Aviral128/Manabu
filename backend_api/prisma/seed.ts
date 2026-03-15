@@ -75,7 +75,7 @@ async function main() {
   const admin = await upsertUser(
     "Aviral Sultaniya",
     "codemva2025@gmail.com",
-    "Sultaniya128",
+    "StrongPass123",
     Role.ADMIN
   );
 

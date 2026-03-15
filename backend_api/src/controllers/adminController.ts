@@ -4,6 +4,7 @@ import { z } from "zod";
 import { deleteUser, listUsers, updateUser } from "../services/authService";
 import { getAdminSummary, listAdminLogs, logAdminAction } from "../services/adminService";
 import * as quizService from "../services/quizService";
+import { adminQuizSchema } from "../validation/quiz";
 
 const userUpdateSchema = z.object({
   displayName: z.string().min(2).optional(),
@@ -56,7 +57,8 @@ export async function listQuizzesController(_request: Request, response: Respons
 }
 
 export async function createQuizController(request: Request, response: Response) {
-  const quiz = await quizService.createQuiz(request.body);
+  const input = adminQuizSchema.parse(request.body);
+  const quiz = await quizService.createQuiz(input);
   await logAdminAction({
     actorId: request.user?.userId,
     action: "quiz.create",
@@ -69,7 +71,8 @@ export async function createQuizController(request: Request, response: Response)
 
 export async function updateQuizController(request: Request, response: Response) {
   const quizId = routeParam(request.params.id);
-  const quiz = await quizService.updateQuiz(quizId, request.body);
+  const input = adminQuizSchema.parse(request.body);
+  const quiz = await quizService.updateQuiz(quizId, input);
   await logAdminAction({
     actorId: request.user?.userId,
     action: "quiz.update",

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MANABU</string>
+    <string name="title_activity_main">MANABU</string>
+    <string name="package_name">com.manabu.app</string>
+    <string name="custom_url_scheme">com.manabu.app</string>
+</resources>
