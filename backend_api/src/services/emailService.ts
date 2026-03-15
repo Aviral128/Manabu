@@ -22,8 +22,8 @@ function getTransporter() {
   if (!transporter) {
     const transportOptions: SMTPTransport.Options & { family: 4 } = {
       host: env.smtpHost,
-      port: env.smtpPort,
-      secure: true,
+      port: 587,
+      secure: false,
       requireTLS: true,
       family: 4,
       auth: {
