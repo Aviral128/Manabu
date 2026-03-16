@@ -5,13 +5,42 @@ import { getSeedQuizzes } from "./quizBank";
 
 const prisma = new PrismaClient();
 
-async function upsertUser(name: string, email: string, password: string, role: Role) {
-  const passwordHash = await bcrypt.hash(password, 10);
+const ADMIN_PASSWORD = "Sultaniya128";
+const ADMIN_ACCOUNTS = [
+  { name: "Aviral Sultaniya", email: "sultaniyaaviral@gmail.com" },
+  { name: "Aviral Sultaniya", email: "codemva2025@gmail.com" },
+];
+
+async function ensureAdminAccount(input: { name: string; email: string }) {
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  const normalizedEmail = input.email.trim().toLowerCase();
 
   return prisma.user.upsert({
-    where: { email },
+    where: { email: normalizedEmail },
+    update: {
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+    },
+    create: {
+      name: input.name,
+      email: normalizedEmail,
+      passwordHash,
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+    },
+  });
+}
+
+async function upsertUser(name: string, email: string, password: string, role: Role) {
+  const passwordHash = await bcrypt.hash(password, 10);
+  const normalizedEmail = email.trim().toLowerCase();
+
+  return prisma.user.upsert({
+    where: { email: normalizedEmail },
     update: { name, passwordHash, role, status: UserStatus.ACTIVE, isEmailVerified: true },
-    create: { name, email, passwordHash, role, status: UserStatus.ACTIVE, isEmailVerified: true },
+    create: { name, email: normalizedEmail, passwordHash, role, status: UserStatus.ACTIVE, isEmailVerified: true },
   });
 }
 
@@ -24,6 +53,20 @@ async function seedLeaderboard(userId: string, points: number, streak: number, b
       streak,
       badges,
     },
+    create: {
+      userId,
+      points,
+      level: Math.max(1, Math.floor(points / 150) + 1),
+      badges,
+      streak,
+    },
+  });
+}
+
+async function ensureLeaderboard(userId: string, points: number, streak: number, badges: string[]) {
+  await prisma.leaderboard.upsert({
+    where: { userId },
+    update: {},
     create: {
       userId,
       points,
@@ -72,19 +115,7 @@ async function seedQuiz(quizData: ReturnType<typeof getSeedQuizzes>[number]) {
 }
 
 async function main() {
-  const admin = await upsertUser(
-    "Aviral Sultaniya",
-    "codemva2025@gmail.com",
-    "StrongPass123",
-    Role.ADMIN
-  );
-
-  const adminTwo = await upsertUser(
-    "Aviral Sultaniya",
-    "sultaniyaaviral@gmail.com",
-    "StrongPass123",
-    Role.ADMIN
-  );
+  const [admin, adminTwo] = await Promise.all(ADMIN_ACCOUNTS.map((account) => ensureAdminAccount(account)));
 
   const learner = await upsertUser(
     "Learner Demo",
@@ -100,8 +131,8 @@ async function main() {
     Role.LEARNER
   );
 
-  await seedLeaderboard(admin.id, 540, 9, ["Founder", "Admin"]);
-  await seedLeaderboard(adminTwo.id, 480, 7, ["Founder", "Admin"]);
+  await ensureLeaderboard(admin.id, 540, 9, ["Founder", "Admin"]);
+  await ensureLeaderboard(adminTwo.id, 480, 7, ["Founder", "Admin"]);
   await seedLeaderboard(learner.id, 220, 4, ["Starter", "Quiz Sprint"]);
   await seedLeaderboard(learnerTwo.id, 170, 2, ["Starter"]);
 
