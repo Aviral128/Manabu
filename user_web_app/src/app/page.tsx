@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Brain, Sparkles, Trophy } from "lucide-react";
+import { Brain, Monitor, Smartphone, Sparkles, Trophy } from "lucide-react";
 
 import { useAuth } from "../auth/AuthProvider";
 import { MarketingNav } from "../components/layout/MarketingNav";
@@ -40,6 +40,25 @@ const steps = [
   {
     title: "Improve your learning",
     description: "Review results and target weak spots.",
+  },
+];
+
+const downloads = [
+  {
+    title: "Android APK",
+    description: "Install MANABU on Android phones and tablets.",
+    meta: "manabu-android.apk",
+    href: "/downloads/manabu-android.apk",
+    button: "Download APK",
+    icon: Smartphone,
+  },
+  {
+    title: "Desktop App",
+    description: "Get the MANABU desktop app for Windows.",
+    meta: "manabu-desktop.exe",
+    href: "/downloads/manabu-desktop.exe",
+    button: "Download EXE",
+    icon: Monitor,
   },
 ];
 
@@ -114,6 +133,34 @@ export default function LandingPage(): JSX.Element {
               </Card>
             </MotionIn>
           ))}
+        </div>
+      </section>
+
+      <section className="landingSection">
+        <div className="sectionHeader">
+          <div className="sectionKicker">Download</div>
+          <h2 className="sectionTitle">Get the MANABU app</h2>
+          <p className="sectionSubtitle">Choose the platform that works best for you and start learning anywhere.</p>
+        </div>
+        <div className="downloadGrid">
+          {downloads.map((item) => {
+            const Icon = item.icon;
+            return (
+              <MotionIn key={item.title} delay={0.05}>
+                <Card className="downloadCard" style={{ padding: 22 }}>
+                  <div className="downloadIcon">
+                    <Icon size={20} />
+                  </div>
+                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>{item.title}</div>
+                  <div style={{ color: "var(--muted)", fontSize: 14 }}>{item.description}</div>
+                  <div className="downloadMeta">{item.meta}</div>
+                  <ButtonLink href={item.href} download>
+                    {item.button}
+                  </ButtonLink>
+                </Card>
+              </MotionIn>
+            );
+          })}
         </div>
       </section>
 
