@@ -37,7 +37,7 @@ export default function VerifyMagicPage(): JSX.Element {
           const result = await verifyEmail(token);
           if (!active) return;
           setStatus("success");
-          setMessage(result.message || "Email verified successfully. Redirecting to login...");
+          setMessage(result.message || "Email verified. You can log in now.");
           redirectTimer = window.setTimeout(() => {
             router.replace("/login?verified=1");
           }, 900);

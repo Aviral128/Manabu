@@ -7,6 +7,7 @@ import { PlainLanguagePanel } from "../../../components/common/PlainLanguagePane
 import { DashboardStatCard } from "../../../components/dashboard/DashboardStatCard";
 import { MotionIn } from "../../../components/motion/MotionIn";
 import { Badge } from "../../../components/ui/Badge";
+import { ButtonLink } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import { Spinner } from "../../../components/ui/Spinner";
 import { Alert } from "../../../components/ui/Alert";
@@ -27,8 +28,8 @@ function DashboardLoadingState(): JSX.Element {
         style={{
           borderRadius: 30,
           padding: 22,
-          background:
-            "radial-gradient(420px 220px at 0% 0%, rgba(56, 189, 248, 0.16), transparent 62%), radial-gradient(360px 180px at 85% 12%, rgba(74, 222, 128, 0.12), transparent 58%), linear-gradient(135deg, rgba(9, 18, 34, 0.98), rgba(16, 28, 50, 0.96) 52%, rgba(10, 18, 35, 0.98))",
+          background: "linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
+          border: "1px solid var(--border)",
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
@@ -39,14 +40,14 @@ function DashboardLoadingState(): JSX.Element {
             <SkeletonBlock width="82%" height={14} />
             <div className="insightGrid" style={{ marginTop: 6 }}>
               {[0, 1, 2].map((item) => (
-                <Card key={item} style={{ borderRadius: 20, padding: 14, background: "rgba(15, 23, 42, 0.76)" }}>
+                <Card key={item} style={{ borderRadius: 20, padding: 14, background: "var(--panelStrong)" }}>
                   <SkeletonBlock width="42%" height={12} />
                   <SkeletonBlock width="60%" height={30} style={{ marginTop: 10 }} />
                 </Card>
               ))}
             </div>
           </div>
-          <Card style={{ borderRadius: 24, padding: 18, background: "rgba(10, 26, 49, 0.95)" }}>
+          <Card style={{ borderRadius: 24, padding: 18, background: "var(--panelStrong)" }}>
             <div style={{ display: "grid", gap: 12 }}>
               <SkeletonBlock width="38%" height={12} />
               <SkeletonBlock width="54%" height={30} />
@@ -195,19 +196,18 @@ export default function UserDashboardPage(): JSX.Element {
           style={{
             borderRadius: 30,
             padding: 22,
-            background:
-              "radial-gradient(420px 220px at 0% 0%, rgba(56, 189, 248, 0.22), transparent 62%), radial-gradient(360px 180px at 85% 12%, rgba(74, 222, 128, 0.16), transparent 58%), radial-gradient(320px 200px at 50% 100%, rgba(249, 115, 22, 0.14), transparent 64%), linear-gradient(135deg, rgba(9, 18, 34, 0.98), rgba(16, 28, 50, 0.96) 52%, rgba(10, 18, 35, 0.98))",
-            border: "1px solid rgba(125, 211, 252, 0.14)",
-            boxShadow: "0 30px 80px rgba(2, 8, 23, 0.42)",
+            background: "linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
+            border: "1px solid var(--border)",
+            boxShadow: "var(--shadow)",
           }}
         >
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <Badge tone="info">Learner dashboard</Badge>
-              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 34, marginTop: 12, color: "#f5fbff" }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 34, marginTop: 12 }}>
                 {profile?.displayName ?? "Learner"}, your next win is one focused session away.
               </div>
-              <div style={{ color: "rgba(211, 225, 244, 0.78)", marginTop: 10, maxWidth: 720, fontSize: 15 }}>
+              <div style={{ color: "var(--muted)", marginTop: 10, maxWidth: 720, fontSize: 15 }}>
                 MANABU is tracking accuracy, study rhythm, and mastery growth so your next practice block is easier to
                 start and harder to waste.
               </div>
@@ -217,13 +217,13 @@ export default function UserDashboardPage(): JSX.Element {
                   style={{
                     padding: 14,
                     borderRadius: 20,
-                    border: "1px solid rgba(148, 163, 184, 0.18)",
-                    background: "linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.72))",
-                    boxShadow: "0 20px 50px rgba(2, 8, 23, 0.28)",
+                    border: "1px solid var(--border)",
+                    background: "var(--panelStrong)",
+                    boxShadow: "var(--shadowSoft)",
                   }}
                 >
-                  <div style={{ color: "rgba(191, 219, 254, 0.76)", fontSize: 12 }}>Accuracy</div>
-                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28, marginTop: 8, color: "#f8fbff" }}>
+                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Accuracy</div>
+                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28, marginTop: 8 }}>
                     {analytics ? formatPercent(Number(analytics.accuracy ?? 0)) : "-"}
                   </div>
                 </div>
@@ -231,13 +231,13 @@ export default function UserDashboardPage(): JSX.Element {
                   style={{
                     padding: 14,
                     borderRadius: 20,
-                    border: "1px solid rgba(148, 163, 184, 0.18)",
-                    background: "linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.72))",
-                    boxShadow: "0 20px 50px rgba(2, 8, 23, 0.28)",
+                    border: "1px solid var(--border)",
+                    background: "var(--panelStrong)",
+                    boxShadow: "var(--shadowSoft)",
                   }}
                 >
-                  <div style={{ color: "rgba(191, 219, 254, 0.76)", fontSize: 12 }}>Weekly minutes</div>
-                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28, marginTop: 8, color: "#f8fbff" }}>
+                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Weekly minutes</div>
+                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28, marginTop: 8 }}>
                     {analytics?.weeklyStudyMinutes ?? "-"}
                   </div>
                 </div>
@@ -245,13 +245,13 @@ export default function UserDashboardPage(): JSX.Element {
                   style={{
                     padding: 14,
                     borderRadius: 20,
-                    border: "1px solid rgba(148, 163, 184, 0.18)",
-                    background: "linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.72))",
-                    boxShadow: "0 20px 50px rgba(2, 8, 23, 0.28)",
+                    border: "1px solid var(--border)",
+                    background: "var(--panelStrong)",
+                    boxShadow: "var(--shadowSoft)",
                   }}
                 >
-                  <div style={{ color: "rgba(191, 219, 254, 0.76)", fontSize: 12 }}>XP</div>
-                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28, marginTop: 8, color: "#f8fbff" }}>
+                  <div style={{ color: "var(--muted)", fontSize: 12 }}>XP</div>
+                  <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28, marginTop: 8 }}>
                     {points}
                   </div>
                 </div>
@@ -262,8 +262,7 @@ export default function UserDashboardPage(): JSX.Element {
               style={{
                 padding: 18,
                 borderRadius: 24,
-                background: "rgba(10, 26, 49, 0.95)",
-                color: "#eff8ff",
+                background: "var(--panelStrong)",
                 minWidth: 0,
               }}
             >
@@ -359,7 +358,14 @@ export default function UserDashboardPage(): JSX.Element {
                     </div>
                   ))
                 ) : (
-                  <div style={{ color: "var(--muted)", fontSize: 13 }}>Take your first quiz to start building a visible trend line here.</div>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                      No quizzes yet. Start your first session to build a visible trend line here.
+                    </div>
+                    <ButtonLink href="/app/quiz" variant="ghost">
+                      Start a quiz
+                    </ButtonLink>
+                  </div>
                 )}
               </div>
             </Card>
@@ -406,7 +412,12 @@ export default function UserDashboardPage(): JSX.Element {
                   </div>
                 ))
               ) : (
-                <div style={{ color: "var(--muted)" }}>No plan available right now.</div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ color: "var(--muted)" }}>No plan available right now.</div>
+                  <ButtonLink href="/app/quiz" variant="ghost">
+                    Build a practice session
+                  </ButtonLink>
+                </div>
               )}
             </div>
           </Card>
@@ -492,7 +503,12 @@ export default function UserDashboardPage(): JSX.Element {
                   </div>
                 ))
               ) : (
-                <div style={{ color: "var(--muted)" }}>No recommendations available right now.</div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ color: "var(--muted)" }}>No recommendations available right now.</div>
+                  <ButtonLink href="/app/quiz" variant="ghost">
+                    Explore quizzes
+                  </ButtonLink>
+                </div>
               )}
             </div>
           </Card>

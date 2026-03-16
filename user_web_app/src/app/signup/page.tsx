@@ -67,8 +67,8 @@ export default function SignupPage(): JSX.Element {
   return (
     <main className="container">
       <MarketingNav />
-      <div style={{ marginTop: 18, display: "grid", placeItems: "center" }}>
-        <Card style={{ width: "min(560px, 100%)", borderRadius: 28 }}>
+      <div className="authShell">
+        <Card className="authCardSmall">
           {state.status === "auth" ? (
             <div style={{ display: "grid", gap: 14 }}>
               <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 28 }}>You already have a session</div>
@@ -130,7 +130,7 @@ export default function SignupPage(): JSX.Element {
               </Alert>
             ) : null}
 
-            <Button type="submit" variant="primary" disabled={busy}>
+            <Button type="submit" variant="primary" disabled={busy} style={{ width: "100%" }}>
               {busy ? <Spinner size={16} /> : null} {busy ? "Signing up..." : "Sign up"}
             </Button>
 

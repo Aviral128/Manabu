@@ -47,8 +47,8 @@ export default function QuizHubPage(): JSX.Element {
           style={{
             borderRadius: 30,
             padding: 22,
-            background:
-              "radial-gradient(320px 180px at 0% 0%, rgba(56, 189, 248, 0.18), transparent 70%), linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
+            background: "linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
+            border: "1px solid var(--border)",
           }}
         >
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
@@ -89,8 +89,7 @@ export default function QuizHubPage(): JSX.Element {
               style={{
                 padding: 18,
                 borderRadius: 24,
-                background: "rgba(9, 24, 45, 0.95)",
-                color: "#eff7ff",
+                background: "var(--panelStrong)",
               }}
             >
               <div style={{ fontSize: 12, opacity: 0.72 }}>Featured quiz</div>
@@ -148,9 +147,20 @@ export default function QuizHubPage(): JSX.Element {
         </div>
       ) : !quizzes.length ? (
         <Card style={{ borderRadius: 24 }}>
-          <Alert tone="warning" title="No quizzes available">
-            The quiz catalog is empty right now. Please refresh in a moment or check the backend quiz sync.
-          </Alert>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 22 }}>No quizzes yet</div>
+            <div style={{ color: "var(--muted)" }}>
+              The quiz catalog is empty right now. Refresh in a moment or head back to your dashboard.
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Button type="button" onClick={() => window.location.reload()}>
+                Refresh catalog
+              </Button>
+              <ButtonLink href="/app/dashboard" variant="ghost">
+                Back to dashboard
+              </ButtonLink>
+            </div>
+          </div>
         </Card>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>

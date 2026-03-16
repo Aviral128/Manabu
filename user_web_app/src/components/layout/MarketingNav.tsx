@@ -25,6 +25,7 @@ export function MarketingNav(): JSX.Element {
   const isAdmin = state.status === "auth" && state.role === "admin";
   const dashboardHref = state.status === "anon" ? "/login?next=/app/dashboard" : "/app/dashboard";
   const mvaSpecialHref = state.status === "anon" ? "/login?next=/app/quiz/mva-special" : "/app/quiz/mva-special";
+  const getStartedHref = state.status === "auth" ? "/app/dashboard" : "/signup";
 
   return (
     <header
@@ -89,7 +90,7 @@ export function MarketingNav(): JSX.Element {
             <ButtonLink href="/login" variant="ghost">
               Login
             </ButtonLink>
-            <ButtonLink href="/login">Get started</ButtonLink>
+            <ButtonLink href={getStartedHref}>Get Started</ButtonLink>
           </>
         )}
       </div>

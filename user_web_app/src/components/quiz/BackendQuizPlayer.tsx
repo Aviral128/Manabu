@@ -341,7 +341,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
       <Card style={{ borderRadius: 28 }}>
         <div style={{ display: "grid", gap: 16 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <Spinner size={18} /> Loading quiz...
+            <Spinner size={18} /> Loading quiz questions...
           </div>
           <div style={{ display: "grid", gap: 10 }}>
             <SkeletonBlock width="28%" height={28} radius={999} />
@@ -377,8 +377,8 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
           style={{
             borderRadius: 30,
             padding: 22,
-            background:
-              "radial-gradient(320px 180px at 0% 0%, rgba(56, 189, 248, 0.18), transparent 70%), linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
+            background: "linear-gradient(135deg, var(--heroSurface), var(--heroSurfaceSoft))",
+            border: "1px solid var(--border)",
           }}
         >
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
@@ -420,13 +420,22 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
               style={{
                 padding: 18,
                 borderRadius: 24,
-                background: "rgba(9, 24, 45, 0.95)",
-                color: "#eff7ff",
+                background: "var(--panelStrong)",
                 minWidth: 0,
               }}
             >
               {!started ? (
                 <div style={{ display: "grid", gap: 14 }}>
+                  {preparingSession ? (
+                    <div style={{ padding: 12, borderRadius: 16, background: "rgba(255,255,255,0.08)", display: "grid", gap: 8 }}>
+                      <div style={{ fontWeight: 900 }}>Generating quiz questions</div>
+                      <div style={{ color: "var(--muted)", fontSize: 13 }}>Building your custom session now.</div>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <SkeletonBlock width="86%" height={10} radius={10} />
+                        <SkeletonBlock width="72%" height={10} radius={10} />
+                      </div>
+                    </div>
+                  ) : null}
                   <div>
                     <div style={{ fontSize: 12, opacity: 0.72 }}>Session builder</div>
                     <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 24, marginTop: 8 }}>
@@ -460,9 +469,9 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                         style={{
                           padding: "10px 12px",
                           borderRadius: 16,
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#eff7ff",
+                          border: "1px solid var(--border)",
+                          background: "rgba(255,255,255,0.08)",
+                          color: "var(--text)",
                         }}
                       />
                     </label>
@@ -489,9 +498,9 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                         style={{
                           padding: "10px 12px",
                           borderRadius: 16,
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#eff7ff",
+                          border: "1px solid var(--border)",
+                          background: "rgba(255,255,255,0.08)",
+                          color: "var(--text)",
                         }}
                       />
                     </label>

@@ -9,10 +9,10 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>): JSX.E
       {...props}
       style={{
         width: "100%",
-        padding: "10px 12px",
-        borderRadius: 16,
+        padding: "12px 14px",
+        borderRadius: 18,
         border: "1px solid var(--border)",
-        background: "rgba(255,255,255,0.05)",
+        background: "rgba(255,255,255,0.08)",
         color: "var(--text)",
         outline: "none",
         ...(props.style ?? {}),

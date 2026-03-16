@@ -27,6 +27,7 @@ export default function LoginPage(): JSX.Element {
   const [passwordBusy, setPasswordBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
     if (!isReady) return;
@@ -41,6 +42,16 @@ export default function LoginPage(): JSX.Element {
       setError(null);
     }
   }, [searchParams]);
+
+  React.useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 760);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   async function onMagicLinkSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -89,11 +100,13 @@ export default function LoginPage(): JSX.Element {
     }
   }
 
+  const passwordVisible = isMobile || showPassword;
+
   return (
     <main className="container">
       <MarketingNav />
-      <div style={{ marginTop: 22, display: "grid", placeItems: "center" }}>
-        <Card style={{ width: "min(980px, 100%)", padding: 0, overflow: "hidden", borderRadius: 32 }}>
+      <div className="authShell">
+        <Card className="authCard" style={{ padding: 0 }}>
           {state.status === "auth" ? (
             <div style={{ padding: 28, display: "grid", gap: 14 }}>
               <div style={{ fontFamily: "var(--font-heading)", fontSize: 30, fontWeight: 900 }}>Redirecting to your dashboard</div>
@@ -105,18 +118,8 @@ export default function LoginPage(): JSX.Element {
               </div>
             </div>
           ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", minHeight: 620 }}>
-            <section
-              style={{
-                padding: 28,
-                background:
-                  "radial-gradient(circle at top left, rgba(14, 165, 233, 0.26), transparent 38%), radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.18), transparent 34%)",
-                borderRight: "1px solid var(--border)",
-                display: "grid",
-                alignContent: "space-between",
-                gap: 18,
-              }}
-            >
+          <div className="authSplit">
+            <section className="authHeroPanel">
               <div style={{ display: "grid", gap: 18 }}>
                 <div
                   style={{
@@ -135,10 +138,8 @@ export default function LoginPage(): JSX.Element {
                   <Sparkles size={16} /> Passwordless by default
                 </div>
                 <div>
-                  <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "clamp(2.3rem, 4vw, 4rem)", lineHeight: 1.02, margin: 0 }}>
-                    Login with one field, not a form maze.
-                  </h1>
-                  <p style={{ color: "var(--muted)", fontSize: 16, maxWidth: 520, marginTop: 16 }}>
+                  <h1 className="authTitle">Login with one field, not a form maze.</h1>
+                  <p className="authSubtitle">
                     Enter your email, open the magic link, and you are in. If you prefer a password, you can still use one.
                   </p>
                 </div>
@@ -171,7 +172,7 @@ export default function LoginPage(): JSX.Element {
               </div>
             </section>
 
-            <section style={{ padding: 28, display: "grid", alignContent: "center", gap: 18 }}>
+            <section className="authFormPanel">
               <div>
                 <div style={{ color: "var(--muted)", fontSize: 12, textTransform: "uppercase", letterSpacing: 1.2 }}>Access MANABU</div>
                 <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 34, margin: "8px 0 0" }}>Welcome back</h2>
@@ -207,26 +208,36 @@ export default function LoginPage(): JSX.Element {
                   />
                 </label>
 
+                {isMobile ? (
+                  <Alert tone="info" title="Mobile tip">
+                    Magic link works best on desktop. For the mobile app, login using your password.
+                  </Alert>
+                ) : null}
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowPassword((current) => {
-                        setError(null);
-                        setSuccess(null);
-                        return !current;
-                      })
-                    }
-                    style={{ background: "none", border: 0, padding: 0, color: "var(--muted)", cursor: "pointer", fontWeight: 700 }}
-                  >
-                    {showPassword ? "Hide password login" : "Use password instead"}
-                  </button>
+                  {!isMobile ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPassword((current) => {
+                          setError(null);
+                          setSuccess(null);
+                          return !current;
+                        })
+                      }
+                      style={{ background: "none", border: 0, padding: 0, color: "var(--muted)", cursor: "pointer", fontWeight: 700 }}
+                    >
+                      {showPassword ? "Hide password login" : "Use password instead"}
+                    </button>
+                  ) : (
+                    <div style={{ color: "var(--muted)", fontWeight: 700 }}>Password login recommended on mobile</div>
+                  )}
                   <Link href="/reset-password" style={{ color: "var(--muted)", fontWeight: 700, textDecoration: "underline" }}>
                     Forgot Password?
                   </Link>
                 </div>
 
-                {showPassword ? (
+                {passwordVisible ? (
                   <div style={{ display: "grid", gap: 10, padding: 14, borderRadius: 20, border: "1px solid var(--border)", background: "rgba(255,255,255,0.05)" }}>
                     <label style={{ display: "grid", gap: 8 }}>
                       <span style={{ color: "var(--muted)", fontSize: 12 }}>Password</span>
@@ -263,7 +274,7 @@ export default function LoginPage(): JSX.Element {
                   </Alert>
                 ) : null}
 
-                <Button type="submit" disabled={linkBusy} style={{ padding: "14px 16px", borderRadius: 18 }}>
+                <Button type="submit" disabled={linkBusy} style={{ padding: "14px 16px", borderRadius: 18, width: "100%" }}>
                   {linkBusy ? <Spinner size={16} /> : <MailCheck size={16} />} {linkBusy ? "Sending login link..." : "Send Login Link"}
                 </Button>
 
@@ -271,15 +282,7 @@ export default function LoginPage(): JSX.Element {
                   <Button type="button" variant="ghost" style={{ padding: "14px 16px", borderRadius: 18 }} disabled>
                     Google login coming soon
                   </Button>
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 18,
-                      border: "1px dashed var(--border)",
-                      color: "var(--muted)",
-                      fontSize: 13,
-                    }}
-                  >
+                  <div className="authHint">
                     Use a magic link or password login for now. Google sign-in is not available on this deployment yet.
                   </div>
                 </div>
