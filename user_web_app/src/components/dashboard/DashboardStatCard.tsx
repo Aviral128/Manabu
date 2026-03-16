@@ -29,7 +29,7 @@ function DashboardStatCardInner({
         {loading ? (
           <SkeletonBlock width="62%" height={34} radius={16} />
         ) : (
-          <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 30 }}>{value}</div>
+          <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "var(--stat-value-size)" }}>{value}</div>
         )}
       </div>
       {helper ? (

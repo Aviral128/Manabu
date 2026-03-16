@@ -19,6 +19,12 @@
   --heroSurfaceSoft: rgba(255, 255, 255, 0.74);
 
   --radius: 20px;
+  --button-pad: 12px 20px;
+  --button-height: 48px;
+  --button-radius: 18px;
+  --input-pad: 12px 14px;
+  --input-radius: 18px;
+  --stat-value-size: 30px;
   --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
@@ -201,6 +207,23 @@ img {
 .appNav {
   display: grid;
   gap: 6px;
+}
+
+.marketingNav {
+  padding: 14px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.marketingNavActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .marketingHero {
@@ -493,6 +516,12 @@ img {
   border-radius: 20px;
 }
 
+.mobileTopbarActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .mobileNav {
   position: fixed;
   left: 12px;
@@ -508,6 +537,8 @@ img {
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: var(--shadowSoft);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .mobileNavItem {
@@ -526,6 +557,10 @@ img {
   color: var(--text);
   border: 1px solid rgba(56, 189, 248, 0.28);
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(74, 222, 128, 0.08));
+}
+
+.mobileNavLabel {
+  font-size: 11px;
 }
 
 .mobileNavIcon {
@@ -617,6 +652,15 @@ img {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --button-pad: 14px 18px;
+    --button-height: 52px;
+    --button-radius: 16px;
+    --input-pad: 14px 14px;
+    --input-radius: 16px;
+    --stat-value-size: 26px;
+  }
+
   .container {
     width: min(100%, calc(100% - 24px));
   }
@@ -657,6 +701,73 @@ img {
   .authHeroPanel {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .authHeroPanel,
+  .authFormPanel {
+    padding: 18px;
+  }
+
+  .authCard,
+  .authCardSmall {
+    border-radius: 20px;
+  }
+
+  .mobileTopbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    border-radius: 18px;
+  }
+
+  .mobileTopbarActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mobileShell {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .mobileMain {
+    gap: 10px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .mobileMain .card {
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .mobileNav {
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    border-radius: 16px;
+  }
+
+  .mobileNavItem {
+    padding: 12px 8px;
+    min-height: 56px;
+  }
+
+  .mobileNavIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .marketingNav {
+    padding: 12px;
+    border-radius: 20px;
+    gap: 10px;
+  }
+
+  .marketingNavActions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 

@@ -111,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
               </div>
             </div>
           </Link>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="mobileTopbarActions">
             <Button variant="ghost" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle theme">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </Button>

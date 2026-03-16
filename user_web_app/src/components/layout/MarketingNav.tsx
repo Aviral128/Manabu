@@ -28,18 +28,7 @@ export function MarketingNav(): JSX.Element {
   const getStartedHref = state.status === "auth" ? "/app/dashboard" : "/signup";
 
   return (
-    <header
-      className="glass"
-      style={{
-        padding: 14,
-        borderRadius: 24,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        flexWrap: "wrap",
-      }}
-    >
+    <header className="glass marketingNav">
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span
           style={{
@@ -61,7 +50,7 @@ export function MarketingNav(): JSX.Element {
         </div>
       </Link>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="marketingNavActions">
         <Link href={dashboardHref} style={{ color: "var(--muted)", fontWeight: 700, fontSize: 14 }}>
           Product
         </Link>
