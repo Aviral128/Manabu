@@ -5,6 +5,7 @@ import { Brain, Sparkles, Trophy } from "lucide-react";
 
 import { useAuth } from "../auth/AuthProvider";
 import { MarketingNav } from "../components/layout/MarketingNav";
+import { BrandLaunchOverlay } from "../components/marketing/BrandLaunchOverlay";
 import { MotionIn } from "../components/motion/MotionIn";
 import { ButtonLink } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -48,6 +49,7 @@ export default function LandingPage(): JSX.Element {
 
   return (
     <main className="container">
+      <BrandLaunchOverlay />
       <MarketingNav />
 
       <section className="landingHero">

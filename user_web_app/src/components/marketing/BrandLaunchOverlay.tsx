@@ -3,30 +3,30 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import React from "react";
 
-const launchSignals = ["Signal scan", "Adaptive engine", "Momentum sync"];
-const orbitBadges = ["AI tuned", "Daily rhythm", "Live practice"];
+const launchSignals = ["Create account", "Generate quizzes", "Improve mastery"];
+const orbitBadges = ["AI quizzes", "Adaptive flow", "Progress tracking"];
 const titleLetters = Array.from("MANABU");
 const launchStages = [
   {
-    label: "Phase 01",
-    title: "Read the learner pulse",
-    description: "Map intent, recent streaks, and the next best move.",
+    label: "Step 01",
+    title: "Create your account",
+    description: "Sign up and verify your email in minutes.",
   },
   {
-    label: "Phase 02",
-    title: "Build the session arc",
-    description: "Shape the quiz, pacing, and focus window in real time.",
+    label: "Step 02",
+    title: "Generate quizzes",
+    description: "Build a session with AI-powered question banks.",
   },
   {
-    label: "Phase 03",
-    title: "Open the feedback loop",
-    description: "Push the learner into action with clarity and momentum.",
+    label: "Step 03",
+    title: "Improve your learning",
+    description: "Review results, focus weak spots, and grow mastery.",
   },
 ];
 const statusFacts = [
-  { label: "Runtime", value: "Live stack" },
-  { label: "Delivery", value: "Web + mobile" },
-  { label: "Mode", value: "Adaptive launch" },
+  { label: "Platform", value: "Web + mobile" },
+  { label: "Engine", value: "AI quiz builder" },
+  { label: "Mode", value: "Adaptive practice" },
 ];
 const particles = [
   { top: "12%", left: "15%", size: 6, delay: 0.1, duration: 3.4 },
