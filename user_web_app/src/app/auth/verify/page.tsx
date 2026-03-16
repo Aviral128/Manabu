@@ -18,8 +18,17 @@ export default function VerifyMagicPage(): JSX.Element {
   const [message, setMessage] = React.useState(
     mode === "verify-email" ? "Verifying your email..." : "Verifying your magic link..."
   );
+  const [isMobileWebView, setIsMobileWebView] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
+    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const isAndroid = /Android/i.test(userAgent);
+    const isWebView = /\bwv\b/i.test(userAgent) || /Capacitor/i.test(userAgent) || /Android.*Version\/[\d.]+/i.test(userAgent);
+    setIsMobileWebView(isAndroid && isWebView);
+  }, []);
+
+  React.useEffect(() => {
+    if (isMobileWebView === null) return;
     let active = true;
     let redirectTimer: number | undefined;
 
@@ -47,6 +56,15 @@ export default function VerifyMagicPage(): JSX.Element {
         const result = await verifyMagicLink(token);
         if (!active) return;
 
+        if (isMobileWebView) {
+          setStatus("success");
+          setMessage("Magic link verified. Open the MANABU app and log in with your password.");
+          redirectTimer = window.setTimeout(() => {
+            router.replace("/auth/magic-mobile");
+          }, 900);
+          return;
+        }
+
         window.localStorage.setItem("manabu_access_token", result.token);
         window.localStorage.setItem("manabu_user", JSON.stringify(result.user));
         setStatus("success");
@@ -67,7 +85,7 @@ export default function VerifyMagicPage(): JSX.Element {
         window.clearTimeout(redirectTimer);
       }
     };
-  }, [mode, router, token]);
+  }, [isMobileWebView, mode, router, token]);
 
   return (
     <main className="container">

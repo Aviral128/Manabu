@@ -210,7 +210,7 @@ export default function LoginPage(): JSX.Element {
 
                 {isMobile ? (
                   <Alert tone="info" title="Mobile tip">
-                    Magic link works best on desktop. For the mobile app, login using your password.
+                    Magic link login works best on desktop. On mobile please login using your password.
                   </Alert>
                 ) : null}
 

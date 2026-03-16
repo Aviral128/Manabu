@@ -172,6 +172,7 @@ export default function UserDashboardPage(): JSX.Element {
   const streak = game?.dailyStreak ?? profile?.leaderboard?.streak ?? 0;
   const badgeCount = Array.isArray(game?.badges) ? game.badges.length : Array.isArray(profile?.leaderboard?.badges) ? profile.leaderboard.badges.length : "-";
   const initialLoading = busy && !profile && !history && !analytics && !plan && !recs && !game;
+  const statsLoading = busy && !profile;
 
   if (!userId && state.status === "loading") {
     return <DashboardLoadingState />;
@@ -204,7 +205,7 @@ export default function UserDashboardPage(): JSX.Element {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <Badge tone="info">Learner dashboard</Badge>
-              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 34, marginTop: 12 }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.9rem, 4vw, 2.2rem)", marginTop: 12 }}>
                 {profile?.displayName ?? "Learner"}, your next win is one focused session away.
               </div>
               <div style={{ color: "var(--muted)", marginTop: 10, maxWidth: 720, fontSize: 15 }}>
@@ -305,7 +306,7 @@ export default function UserDashboardPage(): JSX.Element {
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <div>
-              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 24 }}>Performance snapshot</div>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.2rem, 3vw, 1.6rem)" }}>Performance snapshot</div>
               <div style={{ color: "var(--muted)", marginTop: 4, fontSize: 13 }}>
                 Fast readouts from your attempt history and quiz performance.
               </div>
@@ -318,16 +319,19 @@ export default function UserDashboardPage(): JSX.Element {
               label="Total quizzes taken"
               value={busy && !profile ? "..." : String(quizStats.totalQuizzesTaken)}
               helper="All recorded attempts linked to this account."
+              loading={statsLoading}
             />
             <DashboardStatCard
               label="Average accuracy"
               value={busy && !profile ? "..." : `${quizStats.averageAccuracy}%`}
               helper="Your mean score across saved quiz attempts."
+              loading={statsLoading}
             />
             <DashboardStatCard
               label="Best score"
               value={busy && !profile ? "..." : `${quizStats.bestScore}%`}
               helper="Your highest recorded score so far."
+              loading={statsLoading}
             />
             <Card style={{ borderRadius: 22, padding: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>

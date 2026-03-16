@@ -81,7 +81,16 @@ export default function SignupPage(): JSX.Element {
             </div>
           ) : (
             <>
-              <h1 style={{ fontFamily: "var(--font-heading)", fontWeight: 900, margin: 0 }}>Create your account</h1>
+              <h1
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontWeight: 900,
+                  margin: 0,
+                  fontSize: "clamp(1.7rem, 4vw, 2.4rem)",
+                }}
+              >
+                Create your account
+              </h1>
               <p style={{ color: "var(--muted)", marginTop: 8 }}>
                 Create your account, then verify your email to unlock password and magic-link login.
               </p>

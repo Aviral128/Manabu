@@ -477,6 +477,73 @@ img {
   min-width: 0;
 }
 
+.mobileShell {
+  min-height: 100vh;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.mobileTopbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
+  border-radius: 20px;
+}
+
+.mobileNav {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(72px, 1fr);
+  gap: 8px;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadowSoft);
+}
+
+.mobileNavItem {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.mobileNavItem.active {
+  color: var(--text);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(74, 222, 128, 0.08));
+}
+
+.mobileNavIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.05);
+}
+
+.mobileMain {
+  display: grid;
+  gap: 12px;
+  padding-bottom: calc(90px + env(safe-area-inset-bottom));
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -497,6 +564,20 @@ img {
   }
 }
 
+@keyframes celebratePop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .skeletonBlock {
   background:
     linear-gradient(
@@ -507,6 +588,20 @@ img {
     );
   background-size: 220% 100%;
   animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.completionBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(74, 222, 128, 0.18));
+  color: var(--text);
+  font-weight: 900;
+  font-size: 20px;
+  animation: celebratePop 420ms ease-out both;
+  box-shadow: 0 14px 36px rgba(14, 165, 233, 0.22);
 }
 
 @media (max-width: 1180px) {

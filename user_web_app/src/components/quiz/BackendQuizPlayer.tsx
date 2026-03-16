@@ -388,7 +388,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                 <Badge tone="neutral">{quiz.category ?? "General"}</Badge>
                 <Badge tone="neutral">{quiz.difficulty}</Badge>
               </div>
-              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 34, marginTop: 12 }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.9rem, 4vw, 2.2rem)", marginTop: 12 }}>
                 {quiz.title}
               </div>
               <div style={{ color: "var(--muted)", marginTop: 10, maxWidth: 720 }}>{quiz.description}</div>
@@ -438,7 +438,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                   ) : null}
                   <div>
                     <div style={{ fontSize: 12, opacity: 0.72 }}>Session builder</div>
-                    <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 24, marginTop: 8 }}>
+                    <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.2rem, 3vw, 1.6rem)", marginTop: 8 }}>
                       Customize this subject
                     </div>
                     <div style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.82, marginTop: 8 }}>
@@ -525,7 +525,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: 12, opacity: 0.72 }}>Session status</div>
-                      <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 24, marginTop: 8 }}>
+                      <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.2rem, 3vw, 1.6rem)", marginTop: 8 }}>
                         {finished ? "Completed" : "In progress"}
                       </div>
                     </div>
@@ -592,7 +592,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
       {started && !finished && current ? (
         <Card style={{ borderRadius: 26 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 22 }}>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.2rem, 3vw, 1.5rem)" }}>
               Question {index + 1} of {activeQuestions.length}
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -637,8 +637,9 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                   onClick={() => setAnswers((previous) => ({ ...previous, [index]: optionIndex }))}
                   style={{
                     textAlign: "left",
-                    padding: 14,
-                    borderRadius: 18,
+                    padding: 16,
+                    minHeight: 52,
+                    borderRadius: 20,
                     border: `1px solid ${selected ? "rgba(56, 189, 248, 0.35)" : "var(--border)"}`,
                     background: selected
                       ? "linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(74, 222, 128, 0.08))"
@@ -646,6 +647,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                     color: "var(--text)",
                     cursor: "pointer",
                     fontWeight: 800,
+                    fontSize: 15,
                   }}
                   aria-pressed={selected}
                 >
@@ -668,7 +670,12 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
 
       {finished ? (
         <Card style={{ borderRadius: 26 }}>
-          <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 22 }}>Results</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="completionBadge">✓</div>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.2rem, 3vw, 1.5rem)" }}>
+              Results
+            </div>
+          </div>
           {submitting ? (
             <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
               <Spinner size={16} /> Calculating and saving your result...

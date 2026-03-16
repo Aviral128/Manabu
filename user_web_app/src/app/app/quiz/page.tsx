@@ -54,7 +54,7 @@ export default function QuizHubPage(): JSX.Element {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             <div style={{ minWidth: 0 }}>
               <Badge tone="info">Quiz arena</Badge>
-              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 34, marginTop: 12 }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.9rem, 4vw, 2.2rem)", marginTop: 12 }}>
                 Choose a practice mode backed by the real MANABU quiz engine.
               </div>
               <div style={{ color: "var(--muted)", marginTop: 10, maxWidth: 720 }}>
@@ -93,7 +93,7 @@ export default function QuizHubPage(): JSX.Element {
               }}
             >
               <div style={{ fontSize: 12, opacity: 0.72 }}>Featured quiz</div>
-              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 24, marginTop: 8 }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: "clamp(1.2rem, 3vw, 1.6rem)", marginTop: 8 }}>
                 {featured?.title ?? "Preparing catalog"}
               </div>
               <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.5, opacity: 0.82 }}>

@@ -25,15 +25,32 @@ const nav: NavItem[] = [
   { href: "/about-admin", label: "About Admin", icon: <UserCircle2 size={18} /> },
 ];
 
+const mobileNav: NavItem[] = [
+  { href: "/app/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+  { href: "/app/quiz", label: "Quiz", icon: <BookOpen size={18} /> },
+  { href: "/app/profile", label: "Profile", icon: <UserCircle2 size={18} /> },
+];
+
 export function AppShell({ children }: { children: React.ReactNode }): JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const { state, logout } = useAuth();
   const { theme, systemTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 900);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   React.useEffect(() => {
@@ -68,6 +85,56 @@ export function AppShell({ children }: { children: React.ReactNode }): JSX.Eleme
         Login
       </Button>
     );
+
+  if (isMobile) {
+    return (
+      <div className="mobileShell">
+        <header className="glass mobileTopbar">
+          <Link href="/app/dashboard" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 14,
+                background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(187, 247, 208, 0.86))",
+                display: "grid",
+                placeItems: "center",
+                padding: 6,
+              }}
+            >
+              <Image src="/brand/manabu-wordmark.svg" alt="MANABU" width={34} height={34} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            </span>
+            <div>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, letterSpacing: 0.3 }}>MANABU</div>
+              <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                {state.status === "auth" ? state.user.displayName : "Learner app"}
+              </div>
+            </div>
+          </Link>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Button variant="ghost" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle theme">
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </Button>
+            {authAction}
+          </div>
+        </header>
+
+        <main className="mobileMain">{children}</main>
+
+        <nav className="mobileNav">
+          {mobileNav.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link key={item.href} href={item.href} className={clsx("mobileNavItem", active && "active")}>
+                <span className="mobileNavIcon">{item.icon}</span>
+                <span className="mobileNavLabel">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    );
+  }
 
   return (
     <div className="shellRoot">
