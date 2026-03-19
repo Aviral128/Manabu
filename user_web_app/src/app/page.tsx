@@ -59,7 +59,7 @@ const downloads = [
     id: "android",
     title: "Android App",
     description: "Install MANABU on your Android device",
-    href: "https://github.com/Aviral128/Manabu/releases/download/v1.0/manabu-android.apk",
+    href: "https://github.com/Aviral128/Manabu/releases/download/v1.0/MANABU-preview.apk",
     buttonLabel: "Download APK",
     status: "Available now",
     fileInfo: "APK • ~25 MB",
