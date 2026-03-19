@@ -7,27 +7,28 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "npx @electron/packager . \"MANABU Desktop\" --platform=win32 --arch=x64 --out=dist --overwrite --asar --prune=false"
+    "dist": "electron-builder"
   },
   "devDependencies": {
-    "@electron/packager": "^19.0.5",
     "electron": "^37.10.3",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.8.1"
   },
   "build": {
-    "appId": "app.manabu.desktop",
-    "productName": "MANABU Desktop",
+    "appId": "com.manabu.app",
+    "productName": "MANABU",
+    "files": [
+      "**/*"
+    ],
     "directories": {
+      "app": "app",
       "output": "dist"
     },
-    "files": [
-      "main.js",
-      "package.json"
-    ],
     "win": {
-      "target": [
-        "portable"
-      ]
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.education"
     }
   }
 }

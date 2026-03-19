@@ -1,0 +1,47 @@
+name: Desktop Builds
+
+on:
+  push:
+
+jobs:
+  build:
+    name: Build Desktop App (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+            artifact_name: manabu-desktop-windows
+          - os: macos-latest
+            label: macOS
+            artifact_name: manabu-desktop-macos
+
+    defaults:
+      run:
+        working-directory: desktop_app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop_app/package-lock.json
+
+      - name: Install desktop dependencies
+        run: npm install
+
+      - name: Build desktop artifacts
+        run: npm run dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: desktop_app/dist
+          if-no-files-found: error

@@ -1,0 +1,8 @@
+{
+  "name": "manabu-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MANABU Desktop launcher for the learner app, admin panel, and developer portal.",
+  "author": "Aviral Sultaniya",
+  "main": "main.js"
+}

@@ -27,6 +27,7 @@ type PersistedQuizSession = {
 const MIN_TIME_LIMIT_MINUTES = 5;
 const MAX_TIME_LIMIT_MINUTES = 120;
 const QUIZ_SESSION_KEY_PREFIX = "manabu_quiz_session_v1";
+const QUIZ_HISTORY_KEY_PREFIX = "manabu_quiz_history_v1";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -50,18 +51,97 @@ function shuffleQuestions(questions: SessionQuestion[]) {
   return copy;
 }
 
-function buildSessionQuestions(questions: SessionQuestion[], count: number) {
-  if (count >= questions.length) return [...questions];
-  return shuffleQuestions(questions).slice(0, count);
+function dedupeQuestions(questions: SessionQuestion[]) {
+  const seenIds = new Set<string>();
+  return questions.filter((question) => {
+    if (seenIds.has(question.id)) return false;
+    seenIds.add(question.id);
+    return true;
+  });
+}
+
+function buildSessionQuestions(questions: SessionQuestion[], count: number, seenQuestionIds: string[]) {
+  const uniqueQuestions = dedupeQuestions(questions);
+  if (!uniqueQuestions.length) {
+    return { sessionQuestions: [] as SessionQuestion[], nextSeenQuestionIds: [] as string[] };
+  }
+
+  const validQuestionIds = new Set(uniqueQuestions.map((question) => question.id));
+  const normalizedSeenQuestionIds = Array.from(
+    new Set(seenQuestionIds.filter((questionId) => validQuestionIds.has(questionId))),
+  );
+  const activeSeenQuestionIds =
+    normalizedSeenQuestionIds.length >= uniqueQuestions.length ? [] : normalizedSeenQuestionIds;
+
+  if (count >= uniqueQuestions.length) {
+    return {
+      sessionQuestions: shuffleQuestions(uniqueQuestions),
+      nextSeenQuestionIds: uniqueQuestions.map((question) => question.id),
+    };
+  }
+
+  const seenQuestionSet = new Set(activeSeenQuestionIds);
+  const unseenQuestions = uniqueQuestions.filter((question) => !seenQuestionSet.has(question.id));
+  const sessionQuestions =
+    unseenQuestions.length >= count
+      ? shuffleQuestions(unseenQuestions).slice(0, count)
+      : [
+          ...shuffleQuestions(unseenQuestions),
+          ...shuffleQuestions(uniqueQuestions.filter((question) => seenQuestionSet.has(question.id))).slice(
+            0,
+            count - unseenQuestions.length,
+          ),
+        ];
+
+  return {
+    sessionQuestions,
+    nextSeenQuestionIds: Array.from(
+      new Set([...activeSeenQuestionIds, ...sessionQuestions.map((question) => question.id)]),
+    ),
+  };
 }
 
 function getQuizSessionStorageKey(slug: string) {
   return `${QUIZ_SESSION_KEY_PREFIX}:${slug}`;
 }
 
+function getQuizHistoryStorageKey(slug: string) {
+  return `${QUIZ_HISTORY_KEY_PREFIX}:${slug}`;
+}
+
 function clearStoredQuizSession(slug: string) {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(getQuizSessionStorageKey(slug));
+}
+
+function clearSeenQuestionHistory(slug: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(getQuizHistoryStorageKey(slug));
+}
+
+function readSeenQuestionHistory(slug: string, quiz: QuizDetails) {
+  if (typeof window === "undefined") return [] as string[];
+
+  try {
+    const raw = window.localStorage.getItem(getQuizHistoryStorageKey(slug));
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as { quizId?: string; questionIds?: string[] } | string[];
+    const questionIds = Array.isArray(parsed)
+      ? parsed
+      : parsed.quizId === quiz.id && Array.isArray(parsed.questionIds)
+        ? parsed.questionIds
+        : [];
+    const validQuestionIds = new Set(quiz.questions.map((question) => question.id));
+    return Array.from(new Set(questionIds.filter((questionId): questionId is string => validQuestionIds.has(questionId))));
+  } catch {
+    return [];
+  }
+}
+
+function persistSeenQuestionHistory(slug: string, quizId: string, questionIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getQuizHistoryStorageKey(slug), JSON.stringify({ quizId, questionIds }));
 }
 
 function readStoredQuizSession(slug: string, quiz: QuizDetails): PersistedQuizSession | null {
@@ -130,6 +210,8 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
   const [timeLimitMinutes, setTimeLimitMinutes] = React.useState(15);
   const [sessionQuestions, setSessionQuestions] = React.useState<SessionQuestion[]>([]);
   const [sessionExpiresAt, setSessionExpiresAt] = React.useState<number | null>(null);
+  const [seenQuestionHistoryCount, setSeenQuestionHistoryCount] = React.useState(0);
+  const [historyNotice, setHistoryNotice] = React.useState<string | null>(null);
   const submitLockRef = React.useRef(false);
   const prepareLockRef = React.useRef(false);
 
@@ -144,6 +226,7 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
         if (!alive) return;
 
         const restored = readStoredQuizSession(slug, data);
+        const seenQuestionIds = readSeenQuestionHistory(slug, data);
         const defaultQuestionCount = getDefaultQuestionCount(data.questionCount);
         const defaultTimeLimit = getRecommendedTimeLimit(defaultQuestionCount);
 
@@ -157,6 +240,8 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
         setAnswers(restored?.answers ?? {});
         setResult(null);
         setSessionExpiresAt(restored?.expiresAt ?? null);
+        setSeenQuestionHistoryCount(seenQuestionIds.length);
+        setHistoryNotice(null);
         setTimeLeft(
           restored?.expiresAt
             ? Math.max(0, Math.ceil((restored.expiresAt - Date.now()) / 1000))
@@ -169,6 +254,8 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
       } catch (nextError) {
         if (!alive) return;
         clearStoredQuizSession(slug);
+        setSeenQuestionHistoryCount(0);
+        setHistoryNotice(null);
         setError((nextError as Error).message);
       } finally {
         if (alive) setLoading(false);
@@ -261,6 +348,12 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
     clearStoredQuizSession(slug);
   }
 
+  function handleResetQuestionHistory() {
+    clearSeenQuestionHistory(slug);
+    setSeenQuestionHistoryCount(0);
+    setHistoryNotice("Question rotation reset. Your next session can start fresh.");
+  }
+
   function updateQuestionCount(value: number) {
     if (!quiz) return;
     setQuestionCount(clamp(value, minQuestions, quiz.questionCount));
@@ -280,13 +373,21 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 180));
 
-      const nextSessionQuestions = buildSessionQuestions(quiz.questions, safeQuestionCount);
+      const seenQuestionIds = readSeenQuestionHistory(slug, quiz);
+      const { sessionQuestions: nextSessionQuestions, nextSeenQuestionIds } = buildSessionQuestions(
+        quiz.questions,
+        safeQuestionCount,
+        seenQuestionIds,
+      );
       if (!nextSessionQuestions.length) {
         setError("This subject does not have enough questions to build a session right now.");
         return;
       }
 
       const expiresAt = Date.now() + safeTimeLimitMinutes * 60_000;
+      persistSeenQuestionHistory(slug, quiz.id, nextSeenQuestionIds);
+      setSeenQuestionHistoryCount(nextSeenQuestionIds.length);
+      setHistoryNotice(null);
 
       setStarted(true);
       setFinished(false);
@@ -561,6 +662,9 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
                         <Button variant="ghost" onClick={() => void startQuiz()} disabled={preparingSession}>
                           Retry same setup
                         </Button>
+                        <Button variant="ghost" onClick={handleResetQuestionHistory} disabled={seenQuestionHistoryCount === 0}>
+                          Reset question history
+                        </Button>
                         <Button variant="ghost" onClick={resetToSetup}>
                           Change setup
                         </Button>
@@ -580,11 +684,42 @@ export function BackendQuizPlayer({ slug }: { slug: string }): JSX.Element {
         </Alert>
       ) : null}
 
+      {historyNotice ? (
+        <Alert tone="success" title="Question history updated">
+          {historyNotice}
+        </Alert>
+      ) : null}
+
       {!started ? (
         <Card style={{ borderRadius: 24 }}>
-          <div style={{ color: "var(--muted)" }}>
-            Each session is built from the full subject bank. You control the number of questions and the timer, while
-            scoring, XP, and attempt history are still saved by the backend.
+          <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ color: "var(--muted)" }}>
+              Each session is built from the full subject bank. MANABU rotates through unseen questions first so the same
+              prompts do not repeat until the bank has been worked through, while scoring, XP, and attempt history are still
+              saved by the backend.
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+                flexWrap: "wrap",
+                padding: 14,
+                borderRadius: 18,
+                border: "1px solid var(--border)",
+                background: "rgba(255,255,255,0.04)",
+              }}
+            >
+              <div style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.55 }}>
+                {seenQuestionHistoryCount > 0
+                  ? `This device currently remembers ${seenQuestionHistoryCount} question${seenQuestionHistoryCount === 1 ? "" : "s"} for this quiz.`
+                  : "No question history is saved for this quiz yet."}
+              </div>
+              <Button variant="ghost" onClick={handleResetQuestionHistory} disabled={seenQuestionHistoryCount === 0}>
+                Reset question history
+              </Button>
+            </div>
           </div>
         </Card>
       ) : null}
